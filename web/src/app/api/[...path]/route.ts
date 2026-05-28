@@ -9,11 +9,14 @@ type RouteContext = {
 
 function proxyHeaders(request: NextRequest) {
     const headers = new Headers(request.headers);
-    headers.delete("host");
     headers.delete("content-length");
     headers.delete("connection");
-    headers.set("x-forwarded-host", request.nextUrl.host);
-    headers.set("x-forwarded-proto", request.nextUrl.protocol.replace(":", ""));
+    if (!headers.has("x-forwarded-host")) {
+        headers.set("x-forwarded-host", request.headers.get("host") || request.nextUrl.host);
+    }
+    if (!headers.has("x-forwarded-proto")) {
+        headers.set("x-forwarded-proto", request.nextUrl.protocol.replace(":", ""));
+    }
     return headers;
 }
 
