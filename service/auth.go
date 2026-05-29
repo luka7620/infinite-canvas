@@ -551,15 +551,27 @@ func decodeState(state string) string {
 }
 
 func RequestOrigin(r *http.Request) string {
-	host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	host := forwardedHeaderValue(r.Header.Get("X-Forwarded-Host"))
 	if host == "" {
-		host = r.Host
+		host = forwardedHeaderValue(r.Host)
 	}
-	proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))
+	host = strings.TrimRight(strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://"), "/")
+	proto := strings.ToLower(forwardedHeaderValue(r.Header.Get("X-Forwarded-Proto")))
 	if proto == "" {
 		proto = "http"
 	}
+	if proto != "http" && proto != "https" {
+		proto = "http"
+	}
 	return proto + "://" + host
+}
+
+func forwardedHeaderValue(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	return strings.TrimSpace(strings.Split(value, ",")[0])
 }
 
 func firstNonEmpty(values ...string) string {
