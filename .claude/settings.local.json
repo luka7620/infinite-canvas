@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ssh root@v2202605358237459415 *)"
+      "Bash(ssh root@v2202605358237459415 *)",
+      "Bash(go build *)"
     ]
   }
 }
