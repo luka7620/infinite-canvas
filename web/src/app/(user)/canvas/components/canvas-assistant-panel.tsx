@@ -17,7 +17,6 @@ import { imageToDataUrl, uploadImage } from "@/services/image-storage";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { ReferenceImage } from "@/types/image";
-import { DiaTextReveal } from "@/components/ui/dia-text-reveal";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
 import { CanvasPromptLibrary } from "./canvas-prompt-library";
 import { CanvasNodeType, type CanvasAssistantImage, type CanvasAssistantMessage, type CanvasAssistantReference, type CanvasAssistantSession, type CanvasNodeData } from "../types";
@@ -164,11 +163,11 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
                 const referenceImages: ReferenceImage[] = await Promise.all(
                     refs.filter((item) => item.dataUrl).map(async (item) => ({ id: item.id, name: `${item.title}.png`, type: "image/png", dataUrl: await imageToDataUrl(item), storageKey: item.storageKey })),
                 );
-                const images = referenceImages.length ? await requestEdit(requestConfig, text, referenceImages) : await requestGeneration(requestConfig, text);
+                const images = referenceImages.length ? await requestEdit(requestConfig, text, referenceImages, "canvas-edit") : await requestGeneration(requestConfig, text, "canvas-node");
                 const storedImages = await Promise.all(images.map((image) => uploadImage(image.dataUrl)));
                 updateMessage(session.id, assistantId, {
                     text: `生成了 ${storedImages.length} 张图片`,
-                    images: storedImages.map((image, index) => ({ id: images[index].id, dataUrl: image.url, storageKey: image.storageKey, prompt: text })),
+                    images: storedImages.map((image, index) => ({ id: images[index].id, dataUrl: image.url, storageKey: image.storageKey, prompt: text, generatedImageId: images[index].generatedImageId })),
                     isLoading: false,
                 });
                 return;
@@ -303,11 +302,15 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
                         <AssistantMessages messages={messages} onRetry={retryMessage} onInsertImage={onInsertImage} onInsertText={onInsertText} />
                     ) : (
                         <div className="flex h-full flex-col items-center justify-center px-1 text-center">
-                            <div className="relative font-serif text-4xl font-bold italic tracking-normal" style={{ color: theme.node.text }}>
-                                <span>Infinite Canvas</span>
-                                <DiaTextReveal className="absolute inset-0" colors={["#A97CF8", "#F38CB8", "#FDCC92"]} textColor="transparent" duration={1.8} startOnView={false} text="Infinite Canvas" />
+                            <div className="rounded-2xl border px-4 py-3" style={{ background: theme.node.fill, borderColor: theme.node.stroke }}>
+                                <Sparkles className="mx-auto mb-2 size-5" style={{ color: theme.node.activeStroke }} />
+                                <div className="text-base font-semibold" style={{ color: theme.node.text }}>
+                                    画布助手
+                                </div>
+                                <div className="mt-1 max-w-52 text-sm leading-6" style={{ color: theme.node.muted }}>
+                                    选择节点、粘贴参考图，或直接输入要生成和整理的内容。
+                                </div>
                             </div>
-                            <div className="mt-3 font-serif text-base italic tracking-wide opacity-60">One canvas, infinite ideas</div>
                         </div>
                     )}
                 </div>
@@ -403,7 +406,7 @@ function AssistantComposer({
                     ))}
                 </div>
             ) : null}
-            <div className="rounded-[28px] border px-3 pb-3 pt-3 shadow-lg" style={{ background: theme.toolbar.panel, borderColor: theme.node.stroke }}>
+            <div className="rounded-2xl border px-3 pb-3 pt-3 shadow-sm" style={{ background: theme.toolbar.panel, borderColor: theme.node.stroke }}>
                 <textarea
                     value={prompt}
                     onChange={(event) => onPromptChange(event.target.value)}
@@ -418,7 +421,7 @@ function AssistantComposer({
                         event.preventDefault();
                         void onSubmit();
                     }}
-                    className="thin-scrollbar h-20 w-full resize-none border-0 bg-transparent px-1 py-1 text-sm leading-5 outline-none placeholder:text-stone-400"
+                    className="canvas-theme-placeholder thin-scrollbar h-20 w-full resize-none border-0 bg-transparent px-1 py-1 text-sm leading-5 outline-none"
                     style={{ color: theme.node.text }}
                     placeholder={mode === "image" ? "描述你想生成或修改的图片" : "输入你想问的问题"}
                 />
@@ -569,7 +572,7 @@ function AssistantHistory({
         <div className="space-y-1">
             {sessions.map((session) => (
                 <div key={session.id} className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-black/5 dark:hover:bg-white/10" style={session.id === activeSession?.id ? { background: theme.node.fill } : undefined}>
-                    <input type="checkbox" className="size-4 accent-stone-950" checked={checkedIds.includes(session.id)} onChange={(event) => onToggleChecked(session.id, event.target.checked)} />
+                    <input type="checkbox" className="size-4" style={{ accentColor: theme.node.activeStroke }} checked={checkedIds.includes(session.id)} onChange={(event) => onToggleChecked(session.id, event.target.checked)} />
                     <button type="button" className="min-w-0 flex-1 text-left text-sm" onClick={() => onOpen(session.id)}>
                         <span className="block truncate">{session.title}</span>
                         <span className="text-xs opacity-50">{session.messages.length} 条消息</span>

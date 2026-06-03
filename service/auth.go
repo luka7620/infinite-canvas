@@ -228,7 +228,41 @@ func CurrentAuthUser(tokenText string) (model.AuthUser, bool) {
 	if user.Status == model.UserStatusBan {
 		return model.AuthUser{}, false
 	}
-	return model.PublicUser(user), true
+	authUser := model.PublicUser(user)
+	authUser.CheckedInToday = user.LastCheckInDate == checkInDate()
+	return authUser, true
+}
+
+func CheckIn(userID string) (model.CheckInResult, error) {
+	today := checkInDate()
+	changedAt := now()
+	credits, err := CheckInCredits()
+	if err != nil {
+		return model.CheckInResult{}, err
+	}
+	user, ok, err := repository.CheckInUser(userID, today, credits, changedAt, model.CreditLog{
+		ID:        newID("credit"),
+		UserID:    userID,
+		Type:      model.CreditLogTypeCheckIn,
+		Amount:    credits,
+		Remark:    "每日签到",
+		CreatedAt: changedAt,
+	})
+	if err != nil {
+		return model.CheckInResult{}, err
+	}
+	if !ok {
+		if user.ID == "" {
+			return model.CheckInResult{}, safeMessageError{message: "用户不存在"}
+		}
+		if user.Status == model.UserStatusBan {
+			return model.CheckInResult{}, safeMessageError{message: "账号已被禁用"}
+		}
+		return model.CheckInResult{}, safeMessageError{message: "今天已经签到过了"}
+	}
+	authUser := model.PublicUser(user)
+	authUser.CheckedInToday = true
+	return model.CheckInResult{User: authUser, Credits: credits}, nil
 }
 
 func ListUsers(q model.Query) (model.UserList, error) {
@@ -274,6 +308,7 @@ func SaveUser(user model.User, password string) (model.User, error) {
 		user.Password = saved.Password
 		user.AvatarURL = saved.AvatarURL
 		user.Credits = saved.Credits
+		user.LastCheckInDate = saved.LastCheckInDate
 		user.Extra = saved.Extra
 		if user.AffCode == "" {
 			user.AffCode = saved.AffCode
@@ -412,7 +447,9 @@ func newSession(user model.User) (model.AuthSession, error) {
 	if err != nil {
 		return model.AuthSession{}, err
 	}
-	return model.AuthSession{Token: token, User: model.PublicUser(user)}, nil
+	authUser := model.PublicUser(user)
+	authUser.CheckedInToday = user.LastCheckInDate == checkInDate()
+	return model.AuthSession{Token: token, User: authUser}, nil
 }
 
 func newToken(user model.User) (string, error) {
@@ -440,6 +477,10 @@ func hashPassword(password string) (string, error) {
 
 func now() string {
 	return time.Now().Format(time.RFC3339)
+}
+
+func checkInDate() string {
+	return time.Now().Format(time.DateOnly)
 }
 
 func newID(prefix string) string {

@@ -46,29 +46,24 @@ export default function PromptsPage() {
     };
 
     return (
-        <div className="flex h-full flex-col overflow-hidden bg-background text-stone-800 dark:text-stone-100">
+        <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
             <main
-                className="min-h-0 flex-1 overflow-y-auto bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] px-6 py-8 [background-size:16px_16px] dark:bg-[radial-gradient(rgba(245,245,244,.16)_1px,transparent_1px)]"
+                className="thin-scrollbar min-h-0 flex-1 overflow-y-auto p-4 lg:p-6"
                 onScroll={handleListScroll}
             >
-                <div className="pb-8">
-                    <div className="mx-auto max-w-5xl text-center">
-                        <h1 className="text-4xl font-semibold tracking-tight text-stone-950 dark:text-stone-100">提示词中心</h1>
-                        <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">共 {totalPrompts} 条提示词，按标题、标签与分类快速查找灵感。</p>
-                    </div>
-                    {query.isLoading ? (
-                        <div className="flex h-60 items-center justify-center">
-                            <Spin />
+                <div className="mx-auto grid max-w-[1600px] gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+                    <aside className="rounded-lg border border-border bg-card p-4 lg:sticky lg:top-0 lg:self-start">
+                        <div>
+                            <h1 className="text-2xl font-semibold tracking-normal text-foreground">提示词中心</h1>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">共 {totalPrompts} 条提示词，按标题、标签与分类快速查找灵感。</p>
                         </div>
-                    ) : null}
-                    {!query.isLoading ? (
-                        <>
-                            <div className="mx-auto mt-8 w-full max-w-2xl">
-                                <Input size="large" className="w-full" prefix={<Search className="size-4 text-stone-400" />} value={titleKeyword} placeholder="按标题查询" onChange={(event) => setTitleKeyword(event.target.value)} />
-                            </div>
-                            <div className="mx-auto mt-6 grid max-w-6xl gap-3 text-left">
-                                <div className="grid gap-2 sm:grid-cols-[56px_minmax(0,1fr)] sm:items-start">
-                                    <div className="pt-2 text-xs font-medium text-stone-500 dark:text-stone-400">分类</div>
+                        <div className="mt-5">
+                            <Input size="large" className="w-full" prefix={<Search className="size-4 text-muted-foreground" />} value={titleKeyword} placeholder="按标题查询" onChange={(event) => setTitleKeyword(event.target.value)} />
+                        </div>
+                        {!query.isLoading ? (
+                            <div className="mt-5 space-y-5">
+                                <section>
+                                    <div className="mb-2 text-sm font-semibold text-foreground">分类</div>
                                     <div className="flex flex-wrap gap-2">
                                         {promptCategoryOptions.map((category) => (
                                             <Tag.CheckableTag key={category} checked={selectedCategory === category} className={cn("prompt-filter-tag", selectedCategory === category && "is-active")} onChange={() => setSelectedCategory(category)}>
@@ -76,9 +71,9 @@ export default function PromptsPage() {
                                             </Tag.CheckableTag>
                                         ))}
                                     </div>
-                                </div>
-                                <div className="grid gap-2 sm:grid-cols-[56px_minmax(0,1fr)] sm:items-start">
-                                    <div className="pt-2 text-xs font-medium text-stone-500 dark:text-stone-400">标签</div>
+                                </section>
+                                <section>
+                                    <div className="mb-2 text-sm font-semibold text-foreground">标签</div>
                                     <div className="flex flex-wrap gap-2">
                                         {promptTags.map((tag) => (
                                             <Tag.CheckableTag
@@ -91,35 +86,47 @@ export default function PromptsPage() {
                                             </Tag.CheckableTag>
                                         ))}
                                     </div>
-                                </div>
+                                </section>
                             </div>
-                        </>
-                    ) : null}
-                </div>
+                        ) : null}
+                    </aside>
 
-                {!query.isLoading ? (
-                    <div>
-                        <div className="mx-auto grid max-w-7xl gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                            {promptItems.map((item) => (
-                                <PromptCard
-                                    key={item.id}
-                                    item={item}
-                                    onOpen={() => setSelectedPrompt(item)}
-                                    onCopy={() => copyText(item.prompt, "提示词已复制")}
-                                    extraAction={
-                                        <Button size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => savePromptAsset(item)}>
-                                            加入我的素材
-                                        </Button>
-                                    }
-                                />
-                            ))}
+                    <section className="min-w-0">
+                        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-border pb-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-foreground">提示词列表</h2>
+                                <p className="mt-1 text-sm text-muted-foreground">复制后可直接用于画布、生图或保存到我的素材。</p>
+                            </div>
+                            <Tag className="m-0">{promptItems.length} / {totalPrompts}</Tag>
                         </div>
-                        {promptItems.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有找到匹配的提示词" className="py-16" /> : null}
-                        <div className="mx-auto mt-6 max-w-7xl text-center text-xs text-stone-500 dark:text-stone-400">
+                        {query.isLoading ? (
+                            <div className="flex h-60 items-center justify-center rounded-lg border border-dashed border-border bg-card">
+                                <Spin />
+                            </div>
+                        ) : null}
+                        {!query.isLoading ? (
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                                {promptItems.map((item) => (
+                                    <PromptCard
+                                        key={item.id}
+                                        item={item}
+                                        onOpen={() => setSelectedPrompt(item)}
+                                        onCopy={() => copyText(item.prompt, "提示词已复制")}
+                                        extraAction={
+                                            <Button size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => savePromptAsset(item)}>
+                                                加入我的素材
+                                            </Button>
+                                        }
+                                    />
+                                ))}
+                            </div>
+                        ) : null}
+                        {!query.isLoading && promptItems.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有找到匹配的提示词" className="py-16" /> : null}
+                        <div className="mt-6 text-center text-xs text-muted-foreground">
                             {query.isFetchingNextPage ? "加载中..." : query.hasNextPage ? "继续向下滚动加载更多" : promptItems.length > 0 ? "已经到底了" : null}
                         </div>
-                    </div>
-                ) : null}
+                    </section>
+                </div>
             </main>
 
             <PromptDetailDialog prompt={selectedPrompt} onClose={() => setSelectedPrompt(null)} onCopy={(prompt) => copyText(prompt, "提示词已复制")} onSaveAsset={savePromptAsset} />

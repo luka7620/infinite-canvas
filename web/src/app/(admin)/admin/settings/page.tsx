@@ -37,6 +37,7 @@ const emptySettings: AdminSettings = {
             allowCustomChannel: true,
         },
         auth: { allowRegister: true, linuxDo: { enabled: false } },
+        checkIn: { mode: "fixed", credits: 10, minCredits: 10, maxCredits: 10 },
     },
     private: { channels: [], promptSync: { enabled: true, cron: "*/5 * * * *" }, auth: { linuxDo: { clientId: "", clientSecret: "" } } },
 };
@@ -75,6 +76,7 @@ export default function AdminSettingsPage() {
     const [modelCosts, setModelCosts] = useState<AdminModelCost[]>([]);
     const [knownModels, setKnownModels] = useState<string[]>([]);
     const publicModels = Form.useWatch(["public", "modelChannel", "availableModels"], form) || [];
+    const checkInMode = Form.useWatch(["public", "checkIn", "mode"], form) || "fixed";
     const channelModels = useMemo(() => collectChannelModels(channels), [channels]);
     const channelTableData = useMemo(() => channels.map((channel, index) => ({ ...channel, _index: index, _rowKey: `${index}-${channel.name}-${channel.baseUrl}` })), [channels]);
     const activeMode = editorMode[activeTab];
@@ -354,9 +356,9 @@ export default function AdminSettingsPage() {
     }
 
     return (
-        <main style={{ padding: 24 }}>
+        <main className="admin-page-shell">
             <Flex vertical gap={16}>
-                <Card variant="borderless">
+                <Card className="admin-filter-card" variant="borderless">
                     <Flex justify="space-between" align="center" gap={16} wrap>
                         <Tabs
                             activeKey={activeTab}
@@ -377,7 +379,7 @@ export default function AdminSettingsPage() {
                     </Flex>
                 </Card>
 
-                <Card variant="borderless">
+                <Card className="admin-table-card" variant="borderless">
                     <Flex justify="space-between" align="center" gap={16} wrap style={{ marginBottom: 16 }}>
                         <Segmented
                             value={activeMode}
@@ -448,6 +450,41 @@ export default function AdminSettingsPage() {
                                         <Form.Item name={["public", "auth", "allowRegister"]} label="是否允许用户注册" extra="关闭后隐藏注册入口，注册接口也会拒绝新用户创建" valuePropName="checked">
                                             <Switch />
                                         </Form.Item>
+                                    </Col>
+                                    <Col span={24}>
+                                        <Typography.Title level={5}>签到奖励</Typography.Title>
+                                        <Row gutter={16}>
+                                            <Col xs={24} md={8}>
+                                                <Form.Item name={["public", "checkIn", "mode"]} label="奖励模式">
+                                                    <Segmented
+                                                        options={[
+                                                            { label: "固定点数", value: "fixed" },
+                                                            { label: "随机范围", value: "random" },
+                                                        ]}
+                                                    />
+                                                </Form.Item>
+                                            </Col>
+                                            {checkInMode === "random" ? (
+                                                <>
+                                                    <Col xs={24} md={8}>
+                                                        <Form.Item name={["public", "checkIn", "minCredits"]} label="最小点数">
+                                                            <InputNumber min={1} step={1} precision={0} className="!w-full" addonAfter="点" />
+                                                        </Form.Item>
+                                                    </Col>
+                                                    <Col xs={24} md={8}>
+                                                        <Form.Item name={["public", "checkIn", "maxCredits"]} label="最大点数">
+                                                            <InputNumber min={1} step={1} precision={0} className="!w-full" addonAfter="点" />
+                                                        </Form.Item>
+                                                    </Col>
+                                                </>
+                                            ) : (
+                                                <Col xs={24} md={8}>
+                                                    <Form.Item name={["public", "checkIn", "credits"]} label="固定点数">
+                                                        <InputNumber min={1} step={1} precision={0} className="!w-full" addonAfter="点" />
+                                                    </Form.Item>
+                                                </Col>
+                                            )}
+                                        </Row>
                                     </Col>
                                     <Col span={24}>
                                         <Typography.Title level={5}>模型算力点</Typography.Title>
@@ -841,6 +878,22 @@ function normalizePublicSetting(setting: Partial<AdminSettings["public"]> = {}):
                 enabled: setting.auth?.linuxDo?.enabled === true,
             },
         },
+        checkIn: normalizeCheckInSetting(setting.checkIn),
+    };
+}
+
+function normalizeCheckInSetting(setting: Partial<AdminSettings["public"]["checkIn"]> = {}): AdminSettings["public"]["checkIn"] {
+    const credits = Math.max(1, Number(setting.credits) || 10);
+    let minCredits = Math.max(1, Number(setting.minCredits) || credits);
+    let maxCredits = Math.max(1, Number(setting.maxCredits) || credits);
+    if (minCredits > maxCredits) {
+        [minCredits, maxCredits] = [maxCredits, minCredits];
+    }
+    return {
+        mode: setting.mode === "random" ? "random" : "fixed",
+        credits,
+        minCredits,
+        maxCredits,
     };
 }
 

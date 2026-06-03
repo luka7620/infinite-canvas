@@ -19,6 +19,8 @@ type ImageApiResponse = {
     msg?: string;
 };
 
+export type ImageGenerationSource = "image-page" | "canvas-node" | "canvas-edit";
+
 const QUALITY_BASE: Record<string, number> = {
     low: 1024,
     medium: 2048,
@@ -86,9 +88,11 @@ function parseImagePayload(payload: ImageApiResponse) {
     }
     const images =
         payload.data
-            ?.map(resolveImageDataUrl)
-            .filter((value): value is string => Boolean(value))
-            .map((dataUrl) => ({ id: nanoid(), dataUrl })) || [];
+            ?.map((item) => {
+                const dataUrl = resolveImageDataUrl(item);
+                return dataUrl ? { id: nanoid(), dataUrl, generatedImageId: typeof item.generatedImageId === "string" ? item.generatedImageId : "" } : null;
+            })
+            .filter((value): value is { id: string; dataUrl: string; generatedImageId: string } => Boolean(value)) || [];
 
     if (images.length === 0) {
         throw new Error("接口没有返回图片");
@@ -150,7 +154,7 @@ function withSystemMessage(config: AiConfig, messages: ChatCompletionMessage[]) 
     return systemPrompt ? [{ role: "system" as const, content: systemPrompt }, ...messages] : messages;
 }
 
-export async function requestGeneration(config: AiConfig, prompt: string) {
+export async function requestGeneration(config: AiConfig, prompt: string, source: ImageGenerationSource = "image-page") {
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const quality = normalizeQuality(config.quality);
     const requestSize = resolveRequestSize(quality, config.size);
@@ -160,6 +164,7 @@ export async function requestGeneration(config: AiConfig, prompt: string) {
             {
                 model: config.model,
                 prompt: withSystemPrompt(config, prompt),
+                source,
                 n,
                 ...(quality ? { quality } : {}),
                 ...(requestSize ? { size: requestSize } : {}),
@@ -177,13 +182,14 @@ export async function requestGeneration(config: AiConfig, prompt: string) {
     }
 }
 
-export async function requestEdit(config: AiConfig, prompt: string, references: ReferenceImage[]) {
+export async function requestEdit(config: AiConfig, prompt: string, references: ReferenceImage[], source: ImageGenerationSource = "image-page") {
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const quality = normalizeQuality(config.quality);
     const requestSize = resolveRequestSize(quality, config.size);
     const formData = new FormData();
     formData.set("model", config.model);
     formData.set("prompt", withSystemPrompt(config, prompt));
+    formData.set("source", source);
     formData.set("n", String(n));
     formData.set("response_format", "b64_json");
     if (quality) {

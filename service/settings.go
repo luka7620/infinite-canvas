@@ -82,6 +82,26 @@ func normalizePublicSetting(setting model.PublicSetting) model.PublicSetting {
 		enabled := true
 		setting.Auth.AllowRegister = &enabled
 	}
+	setting.CheckIn = normalizeCheckInRewardSetting(setting.CheckIn)
+	return setting
+}
+
+func normalizeCheckInRewardSetting(setting model.CheckInRewardSetting) model.CheckInRewardSetting {
+	if setting.Mode != "random" {
+		setting.Mode = "fixed"
+	}
+	if setting.Credits <= 0 {
+		setting.Credits = 10
+	}
+	if setting.MinCredits <= 0 {
+		setting.MinCredits = setting.Credits
+	}
+	if setting.MaxCredits <= 0 {
+		setting.MaxCredits = setting.Credits
+	}
+	if setting.MinCredits > setting.MaxCredits {
+		setting.MinCredits, setting.MaxCredits = setting.MaxCredits, setting.MinCredits
+	}
 	return setting
 }
 
@@ -97,6 +117,21 @@ func ModelCost(modelName string) (int, error) {
 		}
 	}
 	return 0, nil
+}
+
+func CheckInCredits() (int, error) {
+	settings, err := repository.GetSettings()
+	if err != nil {
+		return 0, err
+	}
+	setting := normalizePublicSetting(settings.Public).CheckIn
+	if setting.Mode != "random" {
+		return setting.Credits, nil
+	}
+	if setting.MinCredits == setting.MaxCredits {
+		return setting.MinCredits, nil
+	}
+	return rand.Intn(setting.MaxCredits-setting.MinCredits+1) + setting.MinCredits, nil
 }
 
 func normalizePrivateSetting(setting model.PrivateSetting) model.PrivateSetting {

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Modal, Segmented, Tooltip } from "antd";
 import { Camera, Download, FolderPlus, Image as ImageIcon, Info, Lock, LockOpen, Maximize2, MessageSquare, Minus, Pencil, Plus, RefreshCw, Scissors, Settings2, Trash2, Upload, Video } from "lucide-react";
 
-import { canvasThemes } from "@/lib/canvas-theme";
+import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { formatBytes, getDataUrlByteSize } from "@/lib/image-utils";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasNodeType, type CanvasNodeData, type ViewportTransform } from "../types";
@@ -52,6 +52,8 @@ export function CanvasNodeHoverToolbar({
     onToggleFreeResize,
     onDelete,
 }: CanvasNodeHoverToolbarProps) {
+    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+
     if (!node) return null;
 
     const left = viewport.x + (node.position.x + node.width / 2) * viewport.k;
@@ -68,29 +70,30 @@ export function CanvasNodeHoverToolbar({
 
     return (
         <div
-            className="absolute z-[70] flex h-12 -translate-x-1/2 -translate-y-full items-center overflow-visible rounded-[18px] border border-black/10 bg-white text-[15px] text-[#242529] shadow-[0_8px_28px_rgba(15,23,42,.12)]"
-            style={{ left, top }}
+            className="absolute z-[70] flex h-12 -translate-x-1/2 -translate-y-full items-center overflow-visible rounded-lg border text-[15px]"
+            style={{ left, top, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
             onMouseEnter={() => onKeep(node.id)}
             onMouseLeave={onLeave}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
         >
-            <ToolbarAction title="查看节点信息" label="信息" icon={<Info className="size-4" />} onClick={() => onInfo(node)} />
-            <ToolbarAction title="移除节点" label="删除" icon={<Trash2 className="size-4" />} onClick={() => onDelete(node)} danger />
-            {hasSpecificTools ? <ToolbarDivider /> : null}
-            {canRetry ? <ToolbarAction title="重新生成" label="重试" icon={<RefreshCw className="size-4" />} onClick={() => onRetry(node)} /> : null}
-            {hasImage || hasVideo || isText ? <ToolbarAction title="加入我的素材" label="存素材" icon={<FolderPlus className="size-4" />} onClick={() => onSaveAsset(node)} /> : null}
-            {hasImage || hasVideo ? <IconAction title={hasVideo ? "下载视频" : "下载图片"} icon={<Download className="size-5" />} onClick={() => onDownload(node)} /> : null}
-            {canOpenDialog ? <ToolbarAction title="编辑" label="编辑" icon={<MessageSquare className="size-4" />} onClick={() => onToggleDialog(node)} /> : null}
-            {isText ? <ToolbarAction title="编辑文本" label="编辑文字" icon={<Pencil className="size-4" />} onClick={() => onEditText(node)} /> : null}
-            {isText ? <ToolbarAction title="用文本生图" label="生图" icon={<ImageIcon className="size-4" />} onClick={() => onGenerateImage(node)} /> : null}
-            {isConfig ? <ToolbarAction title="生成配置" label="生成配置" icon={<Settings2 className="size-4" />} onClick={() => onInfo(node)} /> : null}
-            {isText ? <ToolbarAction title="减小字号" label="缩小" icon={<Minus className="size-4" />} onClick={() => onDecreaseFont(node)} /> : null}
-            {isText ? <ToolbarAction title="增大字号" label="放大" icon={<Plus className="size-4" />} onClick={() => onIncreaseFont(node)} /> : null}
-            {isImage ? <ToolbarAction title={hasImage ? "替换图片" : "上传图片"} label={hasImage ? "替换图片" : "上传图片"} icon={<Upload className="size-4" />} onClick={() => onUpload(node)} /> : null}
-            {isVideo ? <ToolbarAction title={hasVideo ? "替换视频" : "上传视频"} label={hasVideo ? "替换视频" : "上传视频"} icon={<Video className="size-4" />} onClick={() => onUpload(node)} /> : null}
+            <ToolbarAction theme={theme} title="查看节点信息" label="信息" icon={<Info className="size-4" />} onClick={() => onInfo(node)} />
+            <ToolbarAction theme={theme} title="移除节点" label="删除" icon={<Trash2 className="size-4" />} onClick={() => onDelete(node)} danger />
+            {hasSpecificTools ? <ToolbarDivider theme={theme} /> : null}
+            {canRetry ? <ToolbarAction theme={theme} title="重新生成" label="重试" icon={<RefreshCw className="size-4" />} onClick={() => onRetry(node)} /> : null}
+            {hasImage || hasVideo || isText ? <ToolbarAction theme={theme} title="加入我的素材" label="存素材" icon={<FolderPlus className="size-4" />} onClick={() => onSaveAsset(node)} /> : null}
+            {hasImage || hasVideo ? <IconAction theme={theme} title={hasVideo ? "下载视频" : "下载图片"} icon={<Download className="size-5" />} onClick={() => onDownload(node)} /> : null}
+            {canOpenDialog ? <ToolbarAction theme={theme} title="编辑" label="编辑" icon={<MessageSquare className="size-4" />} onClick={() => onToggleDialog(node)} /> : null}
+            {isText ? <ToolbarAction theme={theme} title="编辑文本" label="编辑文字" icon={<Pencil className="size-4" />} onClick={() => onEditText(node)} /> : null}
+            {isText ? <ToolbarAction theme={theme} title="用文本生图" label="生图" icon={<ImageIcon className="size-4" />} onClick={() => onGenerateImage(node)} /> : null}
+            {isConfig ? <ToolbarAction theme={theme} title="生成配置" label="生成配置" icon={<Settings2 className="size-4" />} onClick={() => onInfo(node)} /> : null}
+            {isText ? <ToolbarAction theme={theme} title="减小字号" label="缩小" icon={<Minus className="size-4" />} onClick={() => onDecreaseFont(node)} /> : null}
+            {isText ? <ToolbarAction theme={theme} title="增大字号" label="放大" icon={<Plus className="size-4" />} onClick={() => onIncreaseFont(node)} /> : null}
+            {isImage ? <ToolbarAction theme={theme} title={hasImage ? "替换图片" : "上传图片"} label={hasImage ? "替换图片" : "上传图片"} icon={<Upload className="size-4" />} onClick={() => onUpload(node)} /> : null}
+            {isVideo ? <ToolbarAction theme={theme} title={hasVideo ? "替换视频" : "上传视频"} label={hasVideo ? "替换视频" : "上传视频"} icon={<Video className="size-4" />} onClick={() => onUpload(node)} /> : null}
             {hasImage ? (
                 <ToolbarAction
+                    theme={theme}
                     title={node.metadata?.freeResize ? "切换为等比缩放" : "切换为自由比例"}
                     label={node.metadata?.freeResize ? "自由比例" : "锁比例"}
                     icon={node.metadata?.freeResize ? <LockOpen className="size-4" /> : <Lock className="size-4" />}
@@ -98,9 +101,9 @@ export function CanvasNodeHoverToolbar({
                     active={node.metadata?.freeResize}
                 />
             ) : null}
-            {hasImage ? <ToolbarAction title="裁剪并生成新节点" label="裁剪" icon={<Scissors className="size-4" />} onClick={() => onCrop(node)} /> : null}
-            {hasImage ? <ToolbarAction title="生成角度" label="多角度" icon={<Camera className="size-4" />} onClick={() => onAngle(node)} /> : null}
-            {hasImage ? <ToolbarAction title="查看图片详情" label="查看大图" icon={<Maximize2 className="size-4" />} onClick={() => onViewImage(node)} /> : null}
+            {hasImage ? <ToolbarAction theme={theme} title="裁剪并生成新节点" label="裁剪" icon={<Scissors className="size-4" />} onClick={() => onCrop(node)} /> : null}
+            {hasImage ? <ToolbarAction theme={theme} title="生成角度" label="多角度" icon={<Camera className="size-4" />} onClick={() => onAngle(node)} /> : null}
+            {hasImage ? <ToolbarAction theme={theme} title="查看图片详情" label="查看大图" icon={<Maximize2 className="size-4" />} onClick={() => onViewImage(node)} /> : null}
         </div>
     );
 }
@@ -175,32 +178,44 @@ export function CanvasNodeInfoModal({ node, open, onClose }: { node: CanvasNodeD
     );
 }
 
-function ToolbarAction({ title, label, icon, onClick, hint, active = false, danger = false }: { title: string; label: string; icon: ReactNode; onClick?: () => void; hint?: string; active?: boolean; danger?: boolean }) {
+function ToolbarAction({ theme, title, label, icon, onClick, hint, active = false, danger = false }: { theme: CanvasTheme; title: string; label: string; icon: ReactNode; onClick?: () => void; hint?: string; active?: boolean; danger?: boolean }) {
+    const [hovered, setHovered] = useState(false);
+    const actionStyle = active
+        ? { background: theme.toolbar.activeBg, color: theme.toolbar.activeText }
+        : {
+              background: hovered ? theme.toolbar.itemHover : "transparent",
+              color: danger ? theme.node.danger : theme.toolbar.item,
+          };
+
     return (
         <Tooltip title={title} placement="top" mouseEnterDelay={0.2}>
-            <button type="button" className={`group relative flex h-12 items-center whitespace-nowrap px-1.5 ${danger ? "text-[#ef4444]" : ""}`} onClick={onClick} aria-label={title}>
-                <span className={`flex h-9 items-center gap-2 rounded-lg px-2.5 transition group-hover:bg-[#f0f0f1] ${active ? "bg-[#eeeeef]" : ""}`}>
+            <button type="button" className="group relative flex h-12 items-center whitespace-nowrap px-1.5" style={{ color: danger ? theme.node.danger : theme.toolbar.item }} onClick={onClick} aria-label={title}>
+                <span className="flex h-9 items-center gap-2 rounded-lg px-2.5 transition" style={actionStyle} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
                     {icon}
                     <span>{label}</span>
-                    {hint ? <span className="text-[#a3a3a3]">{hint}</span> : null}
+                    {hint ? <span style={{ color: theme.node.faint }}>{hint}</span> : null}
                 </span>
             </button>
         </Tooltip>
     );
 }
 
-function IconAction({ title, icon, onClick }: { title: string; icon: ReactNode; onClick: () => void }) {
+function IconAction({ theme, title, icon, onClick }: { theme: CanvasTheme; title: string; icon: ReactNode; onClick: () => void }) {
+    const [hovered, setHovered] = useState(false);
+
     return (
         <Tooltip title={title} placement="top" mouseEnterDelay={0.2}>
             <button type="button" className="group relative grid h-12 w-12 place-items-center px-1.5" onClick={onClick} aria-label={title}>
-                <span className="grid size-9 place-items-center rounded-lg transition group-hover:bg-[#f0f0f1]">{icon}</span>
+                <span className="grid size-9 place-items-center rounded-lg transition" style={{ background: hovered ? theme.toolbar.itemHover : "transparent", color: theme.toolbar.item }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+                    {icon}
+                </span>
             </button>
         </Tooltip>
     );
 }
 
-function ToolbarDivider() {
-    return <span className="mx-1 h-7 w-px scale-x-50 bg-[#dedee2]" />;
+function ToolbarDivider({ theme }: { theme: CanvasTheme }) {
+    return <span className="mx-1 h-7 w-px scale-x-50" style={{ background: theme.toolbar.border }} />;
 }
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {

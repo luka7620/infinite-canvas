@@ -48,6 +48,7 @@ export type CanvasNodeMetadata = {
     storageKey?: string;
     mimeType?: string;
     bytes?: number;
+    generatedImageId?: string;
 };
 
 export type CanvasNodeData = {
@@ -80,6 +81,7 @@ export type CanvasAssistantImage = {
     dataUrl: string;
     storageKey?: string;
     prompt: string;
+    generatedImageId?: string;
 };
 
 export type CanvasAssistantMessage = {

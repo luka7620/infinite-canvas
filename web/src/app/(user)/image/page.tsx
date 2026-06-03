@@ -2,7 +2,7 @@
 
 import { BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, ImagePlus, LoaderCircle, PenLine, Plus, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { App, Button, Checkbox, Drawer, Empty, Image, Input, Modal, Tag, Typography } from "antd";
+import { App, Button, Checkbox, Drawer, Empty, Image, Input, Modal, Switch, Tag, Typography } from "antd";
 import localforage from "localforage";
 import { saveAs } from "file-saver";
 
@@ -16,8 +16,10 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { nanoid } from "nanoid";
 import { formatBytes, formatDuration, getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { requestEdit, requestGeneration } from "@/services/api/image";
+import { publishGalleryImage } from "@/services/api/gallery";
 import { deleteStoredImages, resolveImageUrl, uploadImage } from "@/services/image-storage";
 import { useAssetStore } from "@/stores/use-asset-store";
+import { useUserStore } from "@/stores/use-user-store";
 import type { ReferenceImage } from "@/types/image";
 
 type GeneratedImage = {
@@ -29,6 +31,7 @@ type GeneratedImage = {
     height: number;
     bytes: number;
     mimeType?: string;
+    generatedImageId?: string;
 };
 
 type GenerationResult = {
@@ -74,6 +77,7 @@ export default function ImagePage() {
     const isAiConfigReady = useConfigStore((state) => state.isAiConfigReady);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const addAsset = useAssetStore((state) => state.addAsset);
+    const token = useUserStore((state) => state.token);
     const [prompt, setPrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
     const [results, setResults] = useState<GenerationResult[]>([]);
@@ -88,6 +92,12 @@ export default function ImagePage() {
     const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
     const [previewLog, setPreviewLog] = useState<GenerationLog | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [publishingImage, setPublishingImage] = useState<GeneratedImage | null>(null);
+    const [publishTitle, setPublishTitle] = useState("");
+    const [publishDescription, setPublishDescription] = useState("");
+    const [publishTags, setPublishTags] = useState("");
+    const [publishShowPrompt, setPublishShowPrompt] = useState(false);
+    const [publishLoading, setPublishLoading] = useState(false);
 
     const model = effectiveConfig.imageModel || effectiveConfig.model;
     const canGenerate = Boolean(prompt.trim());
@@ -215,6 +225,48 @@ export default function ImagePage() {
         message.success("已加入我的素材");
     };
 
+    const openPublishDialog = (image: GeneratedImage, index: number) => {
+        if (!image.generatedImageId) {
+            message.warning("这张图片没有生成记录，暂不能发布到画廊");
+            return;
+        }
+        setPublishingImage(image);
+        setPublishTitle(prompt.trim().slice(0, 32) || `生成作品 ${index + 1}`);
+        setPublishDescription("");
+        setPublishTags("");
+        setPublishShowPrompt(false);
+    };
+
+    const publishImageToGallery = async () => {
+        if (!token) {
+            message.warning("请先登录");
+            return;
+        }
+        if (!publishingImage?.generatedImageId) {
+            message.warning("这张图片没有生成记录，暂不能发布到画廊");
+            return;
+        }
+        setPublishLoading(true);
+        try {
+            await publishGalleryImage(token, {
+                generatedImageId: publishingImage.generatedImageId,
+                title: publishTitle,
+                description: publishDescription,
+                tags: publishTags
+                    .split(",")
+                    .map((tag) => tag.trim())
+                    .filter(Boolean),
+                showPrompt: publishShowPrompt,
+            });
+            message.success("已发布到画廊");
+            setPublishingImage(null);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "发布失败");
+        } finally {
+            setPublishLoading(false);
+        }
+    };
+
     const insertPickedAsset = async (payload: InsertAssetPayload) => {
         if (payload.kind === "text") {
             setPrompt(payload.content);
@@ -285,7 +337,7 @@ export default function ImagePage() {
             const image = result[0];
             if (!image) throw new Error("接口没有返回图片");
             const meta = await readImageMeta(image.dataUrl);
-            const nextImage = { id: image.id, dataUrl: image.dataUrl, durationMs: performance.now() - itemStartedAt, width: meta.width, height: meta.height, bytes: getDataUrlByteSize(image.dataUrl) };
+            const nextImage = { id: image.id, dataUrl: image.dataUrl, generatedImageId: image.generatedImageId, durationMs: performance.now() - itemStartedAt, width: meta.width, height: meta.height, bytes: getDataUrlByteSize(image.dataUrl) };
             setResults((value) => updateResultAt(value, index, { status: "success", image: nextImage }));
             return nextImage;
         } catch (error) {
@@ -303,9 +355,9 @@ export default function ImagePage() {
     };
 
     return (
-        <div className="flex h-full flex-col overflow-hidden bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-            <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[300px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)]">
-                <aside className="thin-scrollbar hidden min-h-0 overflow-y-auto rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:block">
+        <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
+            <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)]">
+                <aside className="thin-scrollbar hidden min-h-0 overflow-y-auto rounded-lg border border-border bg-card p-4 lg:block">
                     <LogPanel
                         logs={logs}
                         selectedLogIds={selectedLogIds}
@@ -318,11 +370,12 @@ export default function ImagePage() {
                 </aside>
 
                 <section className="grid gap-3 lg:min-h-0 lg:overflow-hidden xl:grid-cols-[420px_minmax(0,1fr)]">
-                    <div className="thin-scrollbar flex flex-col rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:min-h-0 lg:overflow-y-auto">
+                    <div className="thin-scrollbar flex flex-col rounded-lg border border-border bg-card p-4 lg:min-h-0 lg:overflow-y-auto">
                         <div>
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <h1 className="text-2xl font-semibold text-stone-950 dark:text-stone-100">生图工作台</h1>
+                                    <h1 className="text-2xl font-semibold text-foreground">生图工作台</h1>
+                                    <p className="mt-1 text-sm leading-6 text-muted-foreground">独立生成、保存素材，并发布到作品画廊。</p>
                                 </div>
                                 <div className="flex shrink-0 gap-2 lg:hidden">
                                     <Button icon={<History className="size-4" />} onClick={() => setLogsOpen(true)}>
@@ -364,7 +417,7 @@ export default function ImagePage() {
                                     </div>
                                 </div>
                                 <div
-                                    className="hover-scrollbar hover-scrollbar-hint flex min-h-24 w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed border-stone-300 p-2 pb-3 overscroll-x-contain dark:border-stone-700"
+                                    className="hover-scrollbar hover-scrollbar-hint flex min-h-24 w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed border-border p-2 pb-3 overscroll-x-contain"
                                     onWheel={(event) => {
                                         if (event.currentTarget.scrollWidth <= event.currentTarget.clientWidth) return;
                                         event.preventDefault();
@@ -372,7 +425,7 @@ export default function ImagePage() {
                                     }}
                                 >
                                     {references.map((item) => (
-                                        <div key={item.id} className="group relative size-20 shrink-0 overflow-hidden rounded-md border border-stone-200 dark:border-stone-800">
+                                        <div key={item.id} className="group relative size-20 shrink-0 overflow-hidden rounded-md border border-border">
                                             <img src={item.dataUrl} alt={item.name} className="size-full object-cover" />
                                             <button
                                                 type="button"
@@ -384,12 +437,12 @@ export default function ImagePage() {
                                             </button>
                                         </div>
                                     ))}
-                                    {!references.length ? <div className="flex min-w-full items-center justify-center text-sm text-stone-500">暂无参考图</div> : null}
+                                    {!references.length ? <div className="flex min-w-full items-center justify-center text-sm text-muted-foreground">暂无参考图</div> : null}
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-stone-800 dark:bg-stone-900 sm:hidden">
-                                <span className="truncate text-stone-500 dark:text-stone-400">
+                            <div className="flex items-center justify-between rounded-lg border border-border bg-secondary px-3 py-2 text-sm sm:hidden">
+                                <span className="truncate text-muted-foreground">
                                     {model} · {effectiveConfig.size} · {effectiveConfig.quality}
                                 </span>
                                 <Button size="small" type="text" icon={<SlidersHorizontal className="size-4" />} onClick={() => setSettingsOpen(true)}>
@@ -409,7 +462,7 @@ export default function ImagePage() {
                         </div>
                     </div>
 
-                    <div className="thin-scrollbar rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:min-h-0 lg:overflow-y-auto lg:p-5">
+                    <div className="thin-scrollbar rounded-lg border border-border bg-card p-4 lg:min-h-0 lg:overflow-y-auto lg:p-5">
                         <div className="mb-4 flex items-center justify-between gap-3">
                             <div>
                                 <h2 className="text-xl font-semibold">生成结果</h2>
@@ -420,7 +473,7 @@ export default function ImagePage() {
                             <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
                                 {results.map((result, index) =>
                                     result.status === "success" && result.image ? (
-                                        <ResultImageCard key={result.id} image={result.image} index={index} onEdit={addResultToReferences} onDownload={downloadImage} onSaveAsset={saveResultToAssets} />
+                                        <ResultImageCard key={result.id} image={result.image} index={index} onEdit={addResultToReferences} onDownload={downloadImage} onSaveAsset={saveResultToAssets} onPublish={openPublishDialog} />
                                     ) : result.status === "failed" ? (
                                         <FailedImageCard key={result.id} error={result.error || "生成失败"} onRetry={() => retryResult(index)} />
                                     ) : (
@@ -429,8 +482,8 @@ export default function ImagePage() {
                                 )}
                             </div>
                         ) : (
-                            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-lg border border-dashed border-stone-300 text-center dark:border-stone-700 lg:min-h-[560px]">
-                                <ImagePlus className="mb-4 size-11 text-stone-400" />
+                            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-lg border border-dashed border-border text-center lg:min-h-[560px]">
+                                <ImagePlus className="mb-4 size-11 text-muted-foreground" />
                                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有生成图片" />
                             </div>
                         )}
@@ -459,7 +512,7 @@ export default function ImagePage() {
                     onPreviewLog={(log) => void previewGenerationLog(log)}
                 />
             </Drawer>
-            <Drawer title="参数" placement="bottom" height="82vh" open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+            <Drawer title="参数" placement="bottom" size="82vh" open={settingsOpen} onClose={() => setSettingsOpen(false)}>
                 <div className="grid grid-cols-2 gap-3 pb-4">
                     <GenerationSettings config={effectiveConfig} model={model} updateConfig={updateConfig} openConfigDialog={openConfigDialog} />
                 </div>
@@ -468,6 +521,29 @@ export default function ImagePage() {
             <AssetPickerModal open={assetPickerOpen} defaultTab="my-assets" onInsert={(payload) => void insertPickedAsset(payload)} onClose={() => setAssetPickerOpen(false)} />
             <Modal title="删除生成记录" open={deleteConfirmOpen} onCancel={() => setDeleteConfirmOpen(false)} onOk={deleteSelectedLogs} okText="删除" okButtonProps={{ danger: true }} cancelText="取消">
                 确定删除选中的 {selectedLogIds.length} 条生成记录吗？
+            </Modal>
+            <Modal title="发布到画廊" open={Boolean(publishingImage)} confirmLoading={publishLoading} onCancel={() => setPublishingImage(null)} onOk={() => void publishImageToGallery()} okText="发布" cancelText="取消">
+                <div className="space-y-4">
+                    <label className="block">
+                        <span className="mb-1.5 block text-sm font-medium">标题</span>
+                        <Input value={publishTitle} maxLength={60} onChange={(event) => setPublishTitle(event.target.value)} />
+                    </label>
+                    <label className="block">
+                        <span className="mb-1.5 block text-sm font-medium">描述</span>
+                        <Input.TextArea value={publishDescription} rows={3} onChange={(event) => setPublishDescription(event.target.value)} />
+                    </label>
+                    <label className="block">
+                        <span className="mb-1.5 block text-sm font-medium">标签，用逗号分隔</span>
+                        <Input value={publishTags} onChange={(event) => setPublishTags(event.target.value)} />
+                    </label>
+                    <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                        <div>
+                            <div className="text-sm font-medium">分享提示词</div>
+                            <div className="text-xs text-muted-foreground">关闭后画廊前台不会展示本次生成提示词。</div>
+                        </div>
+                        <Switch checked={publishShowPrompt} onChange={setPublishShowPrompt} />
+                    </div>
+                </div>
             </Modal>
         </div>
     );
@@ -495,18 +571,20 @@ function ResultImageCard({
     onEdit,
     onDownload,
     onSaveAsset,
+    onPublish,
 }: {
     image: GeneratedImage;
     index: number;
     onEdit: (image: GeneratedImage, index: number) => void;
     onDownload: (image: GeneratedImage, index: number) => void;
     onSaveAsset: (image: GeneratedImage, index: number) => void;
+    onPublish: (image: GeneratedImage, index: number) => void;
 }) {
     return (
-        <div className="overflow-hidden rounded-lg border border-stone-200 bg-background dark:border-stone-800">
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
             <Image src={image.dataUrl} alt={`生成结果 ${index + 1}`} className="aspect-square object-cover" />
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-stone-200 px-3 py-2.5 dark:border-stone-800">
-                <div className="flex min-w-0 flex-wrap gap-x-2 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border px-3 py-2.5">
+                <div className="flex min-w-0 flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span>
                         {image.width}x{image.height}
                     </span>
@@ -516,6 +594,9 @@ function ResultImageCard({
                 <div className="flex shrink-0 gap-1">
                     <Button size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => void onSaveAsset(image, index)}>
                         添加到素材
+                    </Button>
+                    <Button size="small" icon={<Sparkles className="size-3.5" />} disabled={!image.generatedImageId} onClick={() => onPublish(image, index)}>
+                        发布画廊
                     </Button>
                     <Button size="small" icon={<PenLine className="size-3.5" />} onClick={() => void onEdit(image, index)}>
                         加入参考图
@@ -531,15 +612,15 @@ function ResultImageCard({
 
 function PendingImageCard() {
     return (
-        <div className="relative aspect-square overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
+        <div className="relative aspect-square overflow-hidden rounded-lg border border-dashed border-border bg-secondary">
             <div
                 className="absolute inset-0 opacity-60"
                 style={{
-                    backgroundImage: "radial-gradient(circle, rgba(120,113,108,0.35) 1.4px, transparent 1.6px)",
+                    backgroundImage: "radial-gradient(circle, color-mix(in oklch, currentColor 26%, transparent) 1.4px, transparent 1.6px)",
                     backgroundSize: "16px 16px",
                 }}
             />
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-stone-500 dark:text-stone-400">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
                 <LoaderCircle className="size-6 animate-spin" />
                 <span>生成中</span>
             </div>
@@ -619,7 +700,7 @@ function LogPanel({
                         onClick={() => onPreviewLog(log)}
                     />
                 ))}
-                {!logs.length ? <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-stone-300 text-center text-sm text-stone-500 dark:border-stone-700">暂无生成记录</div> : null}
+                {!logs.length ? <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-border text-center text-sm text-muted-foreground">暂无生成记录</div> : null}
             </div>
         </>
     );
@@ -629,7 +710,7 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
     return (
         <button
             type="button"
-            className={`block w-full rounded-lg border p-2 text-left transition ${active ? "border-stone-900 bg-blue-50 dark:border-stone-100 dark:bg-blue-950/20" : "border-stone-200 bg-background hover:bg-stone-50 dark:border-stone-800 dark:hover:bg-stone-900"}`}
+            className={`block w-full rounded-lg border p-2 text-left transition ${active ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-secondary"}`}
             onClick={onClick}
         >
             <div className="grid grid-cols-[minmax(128px,1fr)_auto] gap-2">

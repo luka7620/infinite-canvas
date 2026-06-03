@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { AUTH_TOKEN_KEY, fetchCurrentUser, login, register, type AuthPayload, type AuthUser } from "@/services/api/auth";
+import { AUTH_TOKEN_KEY, checkIn, fetchCurrentUser, login, register, type AuthPayload, type AuthUser } from "@/services/api/auth";
 
 type UserStore = {
     token: string;
@@ -13,6 +13,7 @@ type UserStore = {
     setSession: (token: string, user: AuthUser) => void;
     clearSession: () => void;
     hydrateUser: () => Promise<void>;
+    checkIn: () => Promise<{ user: AuthUser; credits: number }>;
     login: (payload: AuthPayload) => Promise<AuthUser>;
     register: (payload: AuthPayload) => Promise<AuthUser>;
 };
@@ -43,6 +44,13 @@ export const useUserStore = create<UserStore>()(
                 } catch {
                     set({ token: "", user: null, isReady: true, isLoading: false });
                 }
+            },
+            checkIn: async () => {
+                const token = get().token;
+                if (!token) throw new Error("请先登录");
+                const result = await checkIn(token);
+                set({ user: result.user, isReady: true });
+                return result;
             },
             login: async (payload) => {
                 set({ isLoading: true });

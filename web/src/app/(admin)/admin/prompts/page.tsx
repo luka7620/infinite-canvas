@@ -131,9 +131,9 @@ export default function AdminPromptsPage() {
     ];
 
     return (
-        <main style={{ padding: 24 }}>
+        <main className="admin-page-shell">
             <Flex vertical gap={16}>
-                <Card variant="borderless">
+                <Card className="admin-filter-card" variant="borderless">
                     <Form layout="vertical">
                         <Row gutter={16} align="bottom">
                             <Col flex="360px">
@@ -179,7 +179,7 @@ export default function AdminPromptsPage() {
                     search={false}
                     defaultSize="middle"
                     tableLayout="fixed"
-                    cardProps={{ variant: "borderless" }}
+                    cardProps={{ className: "admin-table-card", variant: "borderless" }}
                     headerTitle={
                         <Space>
                             <Typography.Text strong>提示词列表</Typography.Text>

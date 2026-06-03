@@ -56,7 +56,7 @@ export function CanvasToolbar({
     const [tipX, setTipX] = useState(0);
     const [appearanceOpen, setAppearanceOpen] = useState(false);
     const [panelX, setPanelX] = useState(0);
-    const dockStyle = { background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item, boxShadow: colorTheme === "dark" ? "0 18px 45px rgba(0,0,0,.32)" : "0 16px 40px rgba(28,25,23,.12)" };
+    const dockStyle = { background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item, boxShadow: colorTheme === "dark" ? "0 12px 30px rgba(0,0,0,.26)" : "0 10px 24px rgba(23,33,31,.10)" };
     const hoverStyle = { background: theme.toolbar.itemHover, color: theme.toolbar.activeText };
     const activeStyle = { background: theme.toolbar.activeBg, color: theme.toolbar.activeText };
     const tip = hovered ? toolLabel(hovered) : "";
@@ -64,7 +64,7 @@ export function CanvasToolbar({
     return (
         <div className="pointer-events-none absolute bottom-5 z-50 flex justify-center" style={{ left: 300, right: 16 }}>
             {tip ? <DockTip label={tip} x={tipX} theme={theme} /> : null}
-            <div ref={wrapRef} className="thin-scrollbar pointer-events-auto flex h-14 max-w-full items-center gap-1 overflow-x-auto rounded-xl border px-2 shadow-lg backdrop-blur [&>*]:shrink-0" style={dockStyle}>
+            <div ref={wrapRef} className="thin-scrollbar pointer-events-auto flex h-14 max-w-full items-center gap-1 overflow-x-auto rounded-xl border px-2 backdrop-blur [&>*]:shrink-0" style={dockStyle}>
                 <ToolbarButton id="tool-hand" label="移动/选择" active={!selectedCount} hovered={hovered} activeStyle={activeStyle} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onDeselect}>
                     <Hand className="size-4.5" />
                 </ToolbarButton>
@@ -130,7 +130,7 @@ export function CanvasToolbar({
 
             {appearanceOpen ? (
                 <div
-                    className="pointer-events-auto absolute bottom-[72px] z-30 w-[248px] -translate-x-1/2 rounded-xl border p-2.5 shadow-xl backdrop-blur"
+                    className="pointer-events-auto absolute bottom-[72px] z-30 w-[248px] -translate-x-1/2 rounded-xl border p-2.5 shadow-sm backdrop-blur"
                     style={{ left: panelX || "50%", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                 >
                     <div className="px-1 pb-2 text-sm font-medium opacity-65">画布外观</div>
@@ -228,7 +228,7 @@ function ToolbarButton({
             aria-label={label}
             className="!h-8 !w-8 !min-w-8 !p-0"
             disabled={disabled}
-            style={active ? activeStyle : hovered === id && !disabled ? hoverStyle : { color: danger ? "#f87171" : theme.toolbar.item, opacity: disabled ? 0.35 : 1 }}
+            style={active ? activeStyle : hovered === id && !disabled ? hoverStyle : { color: danger ? theme.node.danger : theme.toolbar.item, opacity: disabled ? 0.35 : 1 }}
             icon={children}
             onMouseEnter={(event) => {
                 onHover(id);
@@ -247,7 +247,7 @@ function Divider({ theme }: { theme: CanvasTheme }) {
 function CanvasThemeButton({ colorTheme, targetTheme, onThemeChange, children }: { colorTheme: CanvasColorTheme; targetTheme: CanvasColorTheme; onThemeChange: (theme: CanvasColorTheme) => void; children: ReactNode }) {
     const theme = canvasThemes[colorTheme];
     const active = colorTheme === targetTheme;
-    const activeStyle = colorTheme === "light" ? { background: "#111111", color: "#ffffff" } : { background: theme.toolbar.activeBg, color: theme.toolbar.activeText };
+    const activeStyle = { background: theme.toolbar.activeBg, color: theme.toolbar.activeText };
 
     return (
         <AnimatedThemeToggler
@@ -266,7 +266,7 @@ function CanvasThemeButton({ colorTheme, targetTheme, onThemeChange, children }:
 
 function DockTip({ label, x, theme }: { label: string; x: number; theme: CanvasTheme }) {
     return (
-        <span className="absolute bottom-[calc(100%+8px)] -translate-x-1/2 rounded-md px-2 py-1 text-xs shadow-lg" style={{ left: x, background: theme.node.text, color: theme.node.panel }}>
+        <span className="absolute bottom-[calc(100%+8px)] -translate-x-1/2 rounded-md px-2 py-1 text-xs shadow-sm" style={{ left: x, background: theme.node.text, color: theme.node.panel }}>
             {label}
         </span>
     );

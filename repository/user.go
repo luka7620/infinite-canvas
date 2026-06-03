@@ -119,6 +119,35 @@ func RefundUserCredits(id string, credits int, now string) (model.User, bool, er
 	return user, ok && tx.RowsAffected > 0, err
 }
 
+func CheckInUser(id string, date string, credits int, now string, log model.CreditLog) (model.User, bool, error) {
+	db, err := DB()
+	if err != nil {
+		return model.User{}, false, err
+	}
+	var changed bool
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&model.User{}).Where("id = ? AND status = ? AND (last_check_in_date = '' OR last_check_in_date IS NULL OR last_check_in_date <> ?)", id, model.UserStatusActive, date).Updates(map[string]any{
+			"credits":            gorm.Expr("credits + ?", credits),
+			"last_check_in_date": date,
+			"updated_at":         now,
+		})
+		if result.Error != nil || result.RowsAffected == 0 {
+			return result.Error
+		}
+		changed = true
+		var user model.User
+		if err := tx.First(&user, "id = ?", id).Error; err != nil {
+			return err
+		}
+		log.Balance = user.Credits
+		return tx.Save(&log).Error
+	}); err != nil {
+		return model.User{}, false, err
+	}
+	user, ok, err := GetUserByID(id)
+	return user, ok && changed, err
+}
+
 // SaveCreditLog 保存算力点变更流水。
 func SaveCreditLog(log model.CreditLog) (model.CreditLog, error) {
 	db, err := DB()

@@ -28,6 +28,12 @@
     "linuxDo": {
       "enabled": false
     }
+  },
+  "checkIn": {
+    "mode": "fixed",
+    "credits": 10,
+    "minCredits": 10,
+    "maxCredits": 10
   }
 }
 ```
@@ -36,6 +42,7 @@
 | --- | --- | --- |
 | `modelChannel` | object | 模型渠道公开配置组 |
 | `auth` | object | 认证相关公开配置 |
+| `checkIn` | object | 每日签到奖励配置 |
 
 `modelChannel` 字段：
 
@@ -55,6 +62,15 @@
 | --- | --- | --- |
 | `model` | string | 模型名称 |
 | `credits` | number | 每次后端模型接口调用前预扣的算力点 |
+
+`checkIn` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `mode` | string | 奖励模式：`fixed` 固定点数，`random` 随机范围 |
+| `credits` | number | 固定模式发放点数，默认 10 |
+| `minCredits` | number | 随机模式最小发放点数 |
+| `maxCredits` | number | 随机模式最大发放点数 |
 
 用户侧请求模式：
 

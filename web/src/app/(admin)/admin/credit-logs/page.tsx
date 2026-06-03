@@ -15,6 +15,7 @@ const creditLogTypeLabels: Record<string, string> = {
     admin_adjust: "后台调整",
     ai_consume: "模型消费",
     ai_refund: "失败返还",
+    check_in: "每日签到",
 };
 
 export default function AdminCreditLogsPage() {
@@ -91,9 +92,9 @@ export default function AdminCreditLogsPage() {
     ];
 
     return (
-        <main style={{ padding: 24 }}>
+        <main className="admin-page-shell">
             <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Card variant="borderless">
+                <Card className="admin-filter-card" variant="borderless">
                     <Form layout="vertical">
                         <Row gutter={16} align="bottom">
                             <Col flex="360px">
@@ -129,7 +130,7 @@ export default function AdminCreditLogsPage() {
                     search={false}
                     defaultSize="middle"
                     tableLayout="fixed"
-                    cardProps={{ variant: "borderless" }}
+                    cardProps={{ className: "admin-table-card", variant: "borderless" }}
                     headerTitle={
                         <Space>
                             <Typography.Text strong>算力点日志</Typography.Text>

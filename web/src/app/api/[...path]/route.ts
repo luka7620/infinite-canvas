@@ -8,9 +8,13 @@ type RouteContext = {
 };
 
 function proxyHeaders(request: NextRequest) {
-    const headers = new Headers(request.headers);
-    headers.delete("content-length");
-    headers.delete("connection");
+    const headers = new Headers();
+    request.headers.forEach((value, key) => {
+        if (["connection", "content-length", "expect", "keep-alive", "proxy-authenticate", "proxy-authorization", "transfer-encoding", "upgrade"].includes(key.toLowerCase())) {
+            return;
+        }
+        headers.set(key, value);
+    });
     if (!headers.has("x-forwarded-host")) {
         headers.set("x-forwarded-host", request.headers.get("host") || request.nextUrl.host);
     }

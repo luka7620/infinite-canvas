@@ -27,6 +27,13 @@ type ModelCost struct {
 	Credits int    `json:"credits"`
 }
 
+type CheckInRewardSetting struct {
+	Mode       string `json:"mode"`
+	Credits    int    `json:"credits"`
+	MinCredits int    `json:"minCredits"`
+	MaxCredits int    `json:"maxCredits"`
+}
+
 // PublicModelChannelSetting 公开模型渠道配置。
 type PublicModelChannelSetting struct {
 	AvailableModels    []string    `json:"availableModels"`
@@ -43,6 +50,7 @@ type PublicModelChannelSetting struct {
 type PublicSetting struct {
 	ModelChannel PublicModelChannelSetting `json:"modelChannel"`
 	Auth         PublicAuthSetting         `json:"auth"`
+	CheckIn      CheckInRewardSetting      `json:"checkIn"`
 }
 
 type PublicAuthSetting struct {

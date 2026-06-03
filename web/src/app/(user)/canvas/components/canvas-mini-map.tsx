@@ -97,7 +97,7 @@ export function Minimap({ nodes, viewport, viewportSize, onViewportChange }: { n
     };
 
     return (
-        <div className="absolute bottom-24 left-6 z-50 overflow-hidden rounded-lg border shadow-2xl backdrop-blur-sm" style={{ width, height, background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
+        <div className="absolute bottom-24 left-6 z-50 overflow-hidden rounded-lg border shadow-sm backdrop-blur-sm" style={{ width, height, background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
             <div
                 ref={containerRef}
                 className="relative h-full w-full cursor-crosshair"
@@ -115,7 +115,7 @@ export function Minimap({ nodes, viewport, viewportSize, onViewportChange }: { n
             >
                 {nodes.map((node) => {
                     const pos = toMinimap(node.position.x, node.position.y);
-                    const color = node.type === CanvasNodeType.Image ? "#10b981" : node.type === CanvasNodeType.Config ? "#60a5fa" : theme.node.muted;
+                    const color = node.type === CanvasNodeType.Image ? theme.node.asset : node.type === CanvasNodeType.Config ? theme.node.config : theme.node.muted;
                     return (
                         <div
                             key={node.id}

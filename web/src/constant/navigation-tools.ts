@@ -22,6 +22,11 @@ export const navigationTools = [
         icon: FileText,
     },
     {
+        slug: "gallery",
+        label: "作品画廊",
+        icon: Images,
+    },
+    {
         slug: "assets",
         label: "我的素材",
         icon: Images,

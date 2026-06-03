@@ -117,20 +117,20 @@ function CanvasRefreshShell() {
                 }}
             />
 
-            <div className="absolute bottom-5 left-1/2 z-50 flex h-14 -translate-x-1/2 items-center gap-1 rounded-xl border px-2 shadow-lg backdrop-blur" style={{ background: "var(--background)", borderColor: "var(--border)" }} aria-hidden="true">
+            <div className="absolute bottom-5 left-1/2 z-50 flex h-14 -translate-x-1/2 items-center gap-1 rounded-xl border px-2 shadow-sm backdrop-blur" style={{ background: "var(--background)", borderColor: "var(--border)" }} aria-hidden="true">
                 {Array.from({ length: 7 }).map((_, index) => (
                     <div key={index} className="size-8 rounded-md bg-current opacity-10" />
                 ))}
             </div>
 
-            <div className="absolute bottom-24 left-6 z-50 h-40 w-[240px] rounded-lg border shadow-2xl backdrop-blur-sm" style={{ background: "var(--background)", borderColor: "var(--border)" }} aria-hidden="true">
+            <div className="absolute bottom-24 left-6 z-50 h-40 w-[240px] rounded-lg border shadow-sm backdrop-blur-sm" style={{ background: "var(--background)", borderColor: "var(--border)" }} aria-hidden="true">
                 <div className="absolute left-7 top-7 h-5 w-12 rounded-sm bg-current opacity-10" />
                 <div className="absolute left-28 top-16 h-6 w-16 rounded-sm bg-current opacity-10" />
                 <div className="absolute bottom-7 left-16 h-8 w-20 rounded-sm bg-current opacity-10" />
                 <div className="absolute inset-5 rounded border border-current opacity-15" />
             </div>
 
-            <div className="absolute bottom-5 left-5 z-50 flex h-14 w-[260px] items-center gap-2 rounded-xl border px-2 shadow-lg backdrop-blur" style={{ background: "var(--background)", borderColor: "var(--border)" }} aria-hidden="true">
+            <div className="absolute bottom-5 left-5 z-50 flex h-14 w-[260px] items-center gap-2 rounded-xl border px-2 shadow-sm backdrop-blur" style={{ background: "var(--background)", borderColor: "var(--border)" }} aria-hidden="true">
                 <div className="size-8 rounded-md bg-current opacity-10" />
                 <div className="size-8 rounded-md bg-current opacity-10" />
                 <div className="h-1 flex-1 rounded-full bg-current opacity-10" />
@@ -145,7 +145,7 @@ function ConnectionCreateMenu({ pending, onCreate, onClose }: { pending: Pending
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     return (
         <div
-            className="absolute z-[120] w-[300px] rounded-[18px] border p-3 shadow-2xl backdrop-blur"
+            className="absolute z-[120] w-[300px] rounded-2xl border p-3 shadow-sm backdrop-blur"
             data-connection-create-menu
             style={{ left: pending.position.x, top: pending.position.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
@@ -1424,12 +1424,12 @@ function InfiniteCanvasPage() {
             setSelectedNodeIds(new Set([childId]));
             setDialogNodeId(childId);
             try {
-                const image = await requestEdit(generationConfig, prompt, [{ id: node.id, name: `${node.title || node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: node.metadata.content, storageKey: node.metadata.storageKey }]).then(
+                const image = await requestEdit(generationConfig, prompt, [{ id: node.id, name: `${node.title || node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: node.metadata.content, storageKey: node.metadata.storageKey }], "canvas-edit").then(
                     (items) => items[0],
                 );
                 const uploaded = await uploadImage(image.dataUrl);
                 const size = fitNodeSize(uploaded.width, uploaded.height, imageConfig.width, imageConfig.height);
-                setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), prompt, ...generationMetadata } } : item)));
+                setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), prompt, generatedImageId: image.generatedImageId, ...generationMetadata } } : item)));
             } catch (error) {
                 const errorDetails = error instanceof Error ? error.message : "生成失败";
                 setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails } } : item)));
@@ -1683,8 +1683,8 @@ function InfiniteCanvasPage() {
                         targetIds.map(async (targetId) => {
                             try {
                                 const image = referenceImages.length
-                                    ? await requestEdit({ ...generationConfig, count: "1" }, effectivePrompt, referenceImages).then((items) => items[0])
-                                    : await requestGeneration({ ...generationConfig, count: "1" }, effectivePrompt).then((items) => items[0]);
+                                    ? await requestEdit({ ...generationConfig, count: "1" }, effectivePrompt, referenceImages, "canvas-edit").then((items) => items[0])
+                                    : await requestGeneration({ ...generationConfig, count: "1" }, effectivePrompt, "canvas-node").then((items) => items[0]);
                                 const uploaded = await uploadImage(image.dataUrl);
                                 const imageSize = fitNodeSize(uploaded.width, uploaded.height, imageConfig.width, imageConfig.height);
                                 setNodes((prev) => {
@@ -1698,7 +1698,7 @@ function InfiniteCanvasPage() {
                                                 position: { x: center.x - imageSize.width / 2, y: center.y - imageSize.height / 2 },
                                                 width: imageSize.width,
                                                 height: imageSize.height,
-                                                metadata: { ...node.metadata, ...imageMetadata(uploaded), primaryImageId: targetId },
+                                                metadata: { ...node.metadata, ...imageMetadata(uploaded), generatedImageId: image.generatedImageId, primaryImageId: targetId },
                                             };
                                         if (node.id === targetId)
                                             return {
@@ -1706,7 +1706,7 @@ function InfiniteCanvasPage() {
                                                 position: { x: center.x - imageSize.width / 2, y: center.y - imageSize.height / 2 },
                                                 width: imageSize.width,
                                                 height: imageSize.height,
-                                                metadata: { ...node.metadata, ...imageMetadata(uploaded) },
+                                                metadata: { ...node.metadata, ...imageMetadata(uploaded), generatedImageId: image.generatedImageId },
                                             };
                                         return node;
                                     });
@@ -1879,7 +1879,7 @@ function InfiniteCanvasPage() {
                     return;
                 }
 
-                const image = useReferenceImages ? await requestEdit(generationConfig, prompt, retryReferenceImages).then((items) => items[0]) : await requestGeneration(generationConfig, prompt).then((items) => items[0]);
+                const image = useReferenceImages ? await requestEdit(generationConfig, prompt, retryReferenceImages, "canvas-edit").then((items) => items[0]) : await requestGeneration(generationConfig, prompt, "canvas-node").then((items) => items[0]);
                 const uploadedImage = await uploadImage(image.dataUrl);
                 const imageConfig = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
                 const imageSize = fitNodeSize(uploadedImage.width, uploadedImage.height, imageConfig.width, imageConfig.height);
@@ -1894,7 +1894,7 @@ function InfiniteCanvasPage() {
                                   type: CanvasNodeType.Image,
                                   width: imageSize.width,
                                   height: imageSize.height,
-                                  metadata: { ...item.metadata, ...imageMetadata(uploadedImage), prompt, ...generationMetadata },
+                                  metadata: { ...item.metadata, ...imageMetadata(uploadedImage), prompt, generatedImageId: image.generatedImageId, ...generationMetadata },
                               }
                             : item,
                     ),
@@ -1961,7 +1961,7 @@ function InfiniteCanvasPage() {
                 position: { x: center.x - config.width / 2, y: center.y - config.height / 2 },
                 width: config.width,
                 height: config.height,
-                metadata: { ...imageMetadata({ ...storedImage, width: meta.width, height: meta.height }), prompt: image.prompt },
+                metadata: { ...imageMetadata({ ...storedImage, width: meta.width, height: meta.height }), prompt: image.prompt, generatedImageId: image.generatedImageId },
             };
 
             setNodes((prev) => [...prev, node]);
@@ -2474,6 +2474,8 @@ function MenuLabel({ text, shortcut }: { text: string; shortcut: string }) {
 }
 
 function Shortcut({ keys, value }: { keys: string[]; value: string }) {
+    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+
     return (
         <div className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-6 rounded-lg px-1 py-1.5">
             <span className="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -2481,8 +2483,8 @@ function Shortcut({ keys, value }: { keys: string[]; value: string }) {
                     <span key={`${key}-${index}`} className="flex items-center gap-1.5">
                         {index ? <span className="text-xs opacity-35">+</span> : null}
                         <kbd
-                            className="min-w-9 rounded-md border px-2.5 py-1.5 text-center text-xs font-medium leading-none shadow-[inset_0_-1px_0_rgba(0,0,0,.08),0_1px_2px_rgba(0,0,0,.06)]"
-                            style={{ borderColor: "rgba(120,113,108,.28)", background: "linear-gradient(#fff, rgba(245,245,244,.92))", color: "rgb(68,64,60)" }}
+                            className="min-w-9 rounded-md border px-2.5 py-1.5 text-center text-xs font-medium leading-none shadow-sm"
+                            style={{ borderColor: theme.node.stroke, background: theme.node.fill, color: theme.node.text }}
                         >
                             {key}
                         </kbd>

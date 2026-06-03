@@ -11,6 +11,8 @@ export type AuthUser = {
     avatarUrl: string;
     role: UserRole;
     credits: number;
+    lastCheckInDate: string;
+    checkedInToday: boolean;
     createdAt: string;
     updatedAt: string;
 };
@@ -18,6 +20,11 @@ export type AuthUser = {
 export type AuthSession = {
     token: string;
     user: AuthUser;
+};
+
+export type CheckInResult = {
+    user: AuthUser;
+    credits: number;
 };
 
 export type AuthPayload = {
@@ -35,4 +42,8 @@ export async function register(payload: AuthPayload) {
 
 export async function fetchCurrentUser(token?: string) {
     return apiGet<AuthUser>("/api/auth/me", undefined, token);
+}
+
+export async function checkIn(token: string) {
+    return apiPost<CheckInResult>("/api/auth/check-in", {}, token);
 }

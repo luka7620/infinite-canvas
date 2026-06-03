@@ -1,4 +1,5 @@
 import { apiDelete, apiGet, apiPost, compactApiParams } from "@/services/api/request";
+import type { GalleryImage, GalleryImageListResponse, GalleryQuery } from "@/services/api/gallery";
 import type { Prompt, PromptListResponse } from "@/services/api/prompts";
 
 export type AdminPromptCategory = {
@@ -24,6 +25,7 @@ export type AdminUser = {
     linuxDoId: string;
     status: "active" | "ban";
     lastLoginAt: string;
+    lastCheckInDate: string;
     createdAt: string;
     updatedAt: string;
 };
@@ -156,6 +158,18 @@ export async function deleteAdminAsset(token: string, id: string) {
     return apiDelete<boolean>(`/api/admin/assets/${encodeURIComponent(id)}`, token);
 }
 
+export async function fetchAdminGalleryImages(token: string, query: GalleryQuery = {}) {
+    return apiGet<GalleryImageListResponse>("/api/admin/gallery", compactApiParams(query), token);
+}
+
+export async function saveAdminGalleryImage(token: string, id: string, image: Partial<GalleryImage>) {
+    return apiPost<GalleryImage>(`/api/admin/gallery/${encodeURIComponent(id)}`, image, token);
+}
+
+export async function setAdminGalleryStatus(token: string, id: string, status: GalleryImage["status"]) {
+    return apiPost<GalleryImage>(`/api/admin/gallery/${encodeURIComponent(id)}/status`, { status }, token);
+}
+
 export type AdminModelChannel = {
     protocol: "openai";
     name: string;
@@ -183,6 +197,13 @@ export type AdminModelCost = {
     credits: number;
 };
 
+export type AdminCheckInSettings = {
+    mode: "fixed" | "random";
+    credits: number;
+    minCredits: number;
+    maxCredits: number;
+};
+
 export type AdminPublicSettings = {
     modelChannel: AdminPublicModelChannelSettings;
     auth: {
@@ -191,6 +212,7 @@ export type AdminPublicSettings = {
             enabled: boolean;
         };
     };
+    checkIn: AdminCheckInSettings;
 };
 
 export type AdminPrivateSettings = {

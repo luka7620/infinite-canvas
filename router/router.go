@@ -21,6 +21,7 @@ func New() *gin.Engine {
 	api.GET("/auth/linux-do/authorize", gin.WrapF(handler.LinuxDoAuthorize))
 	api.GET("/auth/linux-do/callback", gin.WrapF(handler.LinuxDoCallback))
 	api.GET("/auth/me", middleware.OptionalAuth, gin.WrapF(handler.CurrentUser))
+	api.POST("/auth/check-in", middleware.UserAuth, gin.WrapF(handler.CheckIn))
 	api.GET("/settings", gin.WrapF(handler.Settings))
 	v1 := api.Group("/v1", middleware.UserAuth)
 	v1.POST("/images/generations", gin.WrapF(handler.AIImagesGenerations))
@@ -35,6 +36,9 @@ func New() *gin.Engine {
 	})
 	api.GET("/prompts", middleware.OptionalAuth, gin.WrapF(handler.Prompts))
 	api.GET("/assets", middleware.OptionalAuth, gin.WrapF(handler.Assets))
+	api.GET("/gallery", middleware.OptionalAuth, gin.WrapF(handler.GalleryImages))
+	api.GET("/generated-images", middleware.UserAuth, gin.WrapF(handler.MyGeneratedImages))
+	api.POST("/gallery", middleware.UserAuth, gin.WrapF(handler.PublishGalleryImage))
 	api.POST("/admin/login", gin.WrapF(handler.AdminLogin))
 
 	admin := api.Group("/admin", middleware.AdminAuth)
@@ -67,6 +71,13 @@ func New() *gin.Engine {
 	admin.POST("/assets", gin.WrapF(handler.AdminSaveAsset))
 	admin.DELETE("/assets/:id", func(c *gin.Context) {
 		handler.AdminDeleteAsset(c.Writer, c.Request, c.Param("id"))
+	})
+	admin.GET("/gallery", gin.WrapF(handler.AdminGalleryImages))
+	admin.POST("/gallery/:id", func(c *gin.Context) {
+		handler.AdminSaveGalleryImage(c.Writer, c.Request, c.Param("id"))
+	})
+	admin.POST("/gallery/:id/status", func(c *gin.Context) {
+		handler.AdminSetGalleryStatus(c.Writer, c.Request, c.Param("id"))
 	})
 
 	router.NoRoute(middleware.NotFoundJSON)

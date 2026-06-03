@@ -97,6 +97,12 @@ export default function AdminUsersPage() {
             render: (_, item) => <Typography.Text type="secondary">{item.lastLoginAt ? dayjs(item.lastLoginAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</Typography.Text>,
         },
         {
+            title: "最近签到",
+            dataIndex: "lastCheckInDate",
+            width: 120,
+            render: (_, item) => <Typography.Text type="secondary">{item.lastCheckInDate || "-"}</Typography.Text>,
+        },
+        {
             title: "操作",
             key: "actions",
             width: 96,
@@ -115,9 +121,9 @@ export default function AdminUsersPage() {
     ];
 
     return (
-        <main style={{ padding: 24 }}>
+        <main className="admin-page-shell">
             <Flex vertical gap={16}>
-                <Card variant="borderless">
+                <Card className="admin-filter-card" variant="borderless">
                     <Form layout="vertical">
                         <Row gutter={16} align="bottom">
                             <Col flex="360px">
@@ -160,7 +166,7 @@ export default function AdminUsersPage() {
                     search={false}
                     defaultSize="middle"
                     tableLayout="fixed"
-                    cardProps={{ variant: "borderless" }}
+                    cardProps={{ className: "admin-table-card", variant: "borderless" }}
                     headerTitle={
                         <Space>
                             <Typography.Text strong>用户列表</Typography.Text>

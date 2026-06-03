@@ -18,6 +18,8 @@
 - `credit_logs`
 - `prompts`
 - `assets`
+- `generated_image_records`
+- `gallery_images`
 - `settings`
 
 后续新增表时再同步补充本文档，未实际使用的规划表不提前写入。
@@ -44,6 +46,7 @@
 | `wechat_id`     | string | 微信用户 ID                   |
 | `status`        | string | 用户状态：`active`、`ban`       |
 | `last_login_at` | string | 最近登录时间                   |
+| `last_check_in_date` | string | 最近签到日期，格式为 `YYYY-MM-DD` |
 | `extra`         | json   | 扩展信息，第三方资料按平台命名空间保存，如 `linuxDo` |
 | `created_at`    | string | 创建时间                     |
 | `updated_at`    | string | 更新时间                     |
@@ -84,6 +87,50 @@
 | `created_at`     | string | 创建时间                          |
 | `updated_at`     | string | 更新时间                          |
 
+### generated_image_records
+
+站内模型通道生成图片记录表。只有通过后端模型接口生成并写入该表的图片，才能继续发布到公开画廊。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 主键 |
+| `user_id` | string | 归属用户 ID |
+| `image_url` | text | 生成图片地址或 data URL |
+| `width` | number | 图片宽度 |
+| `height` | number | 图片高度 |
+| `mime_type` | string | 图片 MIME 类型 |
+| `model` | string | 生成模型 |
+| `prompt` | text | 生成提示词 |
+| `source` | string | 来源场景，例如 `image-page`、`canvas-node`、`canvas-edit` |
+| `is_published` | bool | 是否已发布到画廊 |
+| `created_at` | string | 创建时间 |
+| `updated_at` | string | 更新时间 |
+
+### gallery_images
+
+公开画廊图片表。保存公开展示信息和审核状态，不提供本地上传入口。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 主键 |
+| `generated_image_id` | string | 关联生成图片记录 ID，唯一索引 |
+| `user_id` | string | 发布用户 ID |
+| `title` | string | 标题 |
+| `description` | text | 描述 |
+| `tags` | json | 标签列表 |
+| `image_url` | text | 展示图片地址 |
+| `width` | number | 图片宽度 |
+| `height` | number | 图片高度 |
+| `mime_type` | string | 图片 MIME 类型 |
+| `model` | string | 生成模型 |
+| `prompt` | text | 生成提示词；前台仅在 `show_prompt` 为 true 时返回展示 |
+| `source` | string | 来源场景 |
+| `show_prompt` | bool | 是否公开提示词 |
+| `status` | string | 状态：`public`、`hidden`、`deleted` |
+| `recommended` | bool | 是否推荐 |
+| `created_at` | string | 创建时间 |
+| `updated_at` | string | 更新时间 |
+
 ### settings
 
 系统配置表，只保存两行数据：`public` 放前端可读取的公开配置，`private` 放仅后端和管理员可读取的私有配置，配置值都用 JSON。
@@ -106,6 +153,7 @@
 |-------------------|----------|----------------|
 | `modelChannel` | object | 模型渠道公开配置组 |
 | `auth` | object | 公开登录配置 |
+| `checkIn` | object | 每日签到奖励配置 |
 
 `modelChannel` 当前字段：
 
@@ -126,6 +174,15 @@
 | --- | --- | --- |
 | `model` | string | 模型名称 |
 | `credits` | number | 每次后端模型接口调用前预扣的算力点，未配置默认不扣除 |
+
+`checkIn` 当前字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `mode` | string | 奖励模式：`fixed` 固定点数，`random` 随机范围 |
+| `credits` | number | 固定模式发放点数，默认 10 |
+| `minCredits` | number | 随机模式最小发放点数 |
+| `maxCredits` | number | 随机模式最大发放点数 |
 
 `auth.linuxDo` 当前字段：
 
@@ -172,13 +229,13 @@
 
 ### credit_logs
 
-用户算力点变更流水表。当前记录后台手动调整、模型调用预扣和模型调用失败返还。
+用户算力点变更流水表。当前记录后台手动调整、每日签到、模型调用预扣和模型调用失败返还。
 
 | 字段           | 类型     | 说明                       |
 |--------------|--------|--------------------------|
 | `id`         | string | 主键                       |
 | `user_id`    | string | 关联用户 ID                  |
-| `type`       | string | 类型：`admin_adjust`、`ai_consume`、`ai_refund` |
+| `type`       | string | 类型：`admin_adjust`、`check_in`、`ai_consume`、`ai_refund` |
 | `amount`     | number | 本次变动数量，增加为正，扣减为负         |
 | `balance`    | number | 变动后的用户算力点余额              |
 | `related_id` | string | 关联业务 ID，可为空                |
@@ -191,5 +248,6 @@
 | 值 | 说明 |
 | --- | --- |
 | `admin_adjust` | 后台手动调整 |
+| `check_in` | 每日签到获得 |
 | `ai_consume` | 调用后端模型接口消费 |
 | `ai_refund` | 后端模型接口调用失败返还 |

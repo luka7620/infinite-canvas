@@ -97,6 +97,20 @@ func CurrentUser(w http.ResponseWriter, r *http.Request) {
 	OK(w, service.GuestUser())
 }
 
+func CheckIn(w http.ResponseWriter, r *http.Request) {
+	user, ok := service.UserFromContext(r.Context())
+	if !ok || user.Role == model.UserRoleGuest {
+		Fail(w, "未登录或权限不足")
+		return
+	}
+	result, err := service.CheckIn(user.ID)
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, result)
+}
+
 func AdminUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := service.ListUsers(parseQuery(r))
 	if err != nil {

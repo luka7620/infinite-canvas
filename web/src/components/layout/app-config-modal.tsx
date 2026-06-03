@@ -58,7 +58,7 @@ export function AppConfigModal() {
             title={
                 <div>
                     <div className="text-lg font-semibold">配置</div>
-                    <div className="mt-1 text-xs font-normal text-stone-500">模型和密钥</div>
+                    <div className="mt-1 text-xs font-normal text-muted-foreground">模型和密钥</div>
                 </div>
             }
             open={isConfigOpen}
@@ -97,10 +97,10 @@ export function AppConfigModal() {
                                     <Input.Password value={config.apiKey} onChange={(event) => updateConfig("apiKey", event.target.value)} />
                                 </Form.Item>
                             </div>
-                            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-2 dark:border-stone-800">
+                            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                                 <div className="min-w-0">
                                     <div className="text-sm font-medium">模型列表</div>
-                                    <div className="mt-1 text-xs text-stone-500">当前已保存 {config.models.length} 个模型</div>
+                                    <div className="mt-1 text-xs text-muted-foreground">当前已保存 {config.models.length} 个模型</div>
                                 </div>
                                 <Button size="small" loading={loadingModels} onClick={() => void refreshModels()}>
                                     拉取模型列表
@@ -108,8 +108,8 @@ export function AppConfigModal() {
                             </div>
                         </>
                     ) : (
-                        <div className="mb-4 rounded-lg border border-stone-200 p-3 text-sm text-stone-500 dark:border-stone-800">
-                            <div className="font-medium text-stone-900 dark:text-stone-100">云端渠道</div>
+                        <div className="mb-4 rounded-lg border border-border p-3 text-sm text-muted-foreground">
+                            <div className="font-medium text-foreground">云端渠道</div>
                             <div className="mt-1">由系统后台渠道转发请求，当前可用 {modelChannel?.availableModels.length || 0} 个模型。</div>
                         </div>
                     )}
