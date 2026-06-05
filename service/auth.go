@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type TokenClaims struct {
@@ -30,6 +32,11 @@ type TokenClaims struct {
 
 type userExtra struct {
 	LinuxDo any `json:"linuxDo,omitempty"`
+}
+
+type linuxDoState struct {
+	Redirect string `json:"redirect"`
+	Code     string `json:"code,omitempty"`
 }
 
 func EnsureDefaultAdmin() error {
@@ -58,48 +65,6 @@ func EnsureDefaultAdmin() error {
 	return err
 }
 
-func Register(username string, password string) (model.AuthSession, error) {
-	settings, err := repository.GetSettings()
-	if err != nil {
-		return model.AuthSession{}, err
-	}
-	normalizedSettings := normalizeSettings(settings)
-	if normalizedSettings.Public.Auth.AllowRegister != nil && !*normalizedSettings.Public.Auth.AllowRegister {
-		return model.AuthSession{}, safeMessageError{message: "当前未开放注册"}
-	}
-	username = strings.TrimSpace(username)
-	if strings.ContainsAny(username, " \t\r\n") {
-		return model.AuthSession{}, safeMessageError{message: "用户名不能包含空格"}
-	}
-	if username == "" || password == "" {
-		return model.AuthSession{}, safeMessageError{message: "用户名和密码不能为空"}
-	}
-	if _, ok, err := repository.GetUserByUsername(username); err != nil || ok {
-		if err != nil {
-			return model.AuthSession{}, err
-		}
-		return model.AuthSession{}, safeMessageError{message: "用户名已存在"}
-	}
-	hash, err := hashPassword(password)
-	if err != nil {
-		return model.AuthSession{}, err
-	}
-	user, err := repository.SaveUser(model.User{
-		ID:        newID("user"),
-		Username:  username,
-		Password:  hash,
-		Role:      model.UserRoleUser,
-		AffCode:   newAffCode(),
-		Status:    model.UserStatusActive,
-		CreatedAt: now(),
-		UpdatedAt: now(),
-	})
-	if err != nil {
-		return model.AuthSession{}, err
-	}
-	return newSession(user)
-}
-
 func Login(username string, password string) (model.AuthSession, error) {
 	user, ok, err := repository.GetUserByUsername(strings.TrimSpace(username))
 	if err != nil {
@@ -121,7 +86,7 @@ func Login(username string, password string) (model.AuthSession, error) {
 	return newSession(user)
 }
 
-func LinuxDoAuthorizeURL(r *http.Request, redirect string) (string, error) {
+func LinuxDoAuthorizeURL(r *http.Request, redirect string, code string) (string, error) {
 	settings, err := repository.GetSettings()
 	if err != nil {
 		return "", err
@@ -134,17 +99,23 @@ func LinuxDoAuthorizeURL(r *http.Request, redirect string) (string, error) {
 	if strings.TrimSpace(linuxDo.ClientID) == "" || strings.TrimSpace(linuxDo.ClientSecret) == "" {
 		return "", safeMessageError{message: "Linux.do 登录未配置"}
 	}
+	if normalizeInviteCode(code) != "" {
+		if _, _, err := validInviteCode(code, model.InviteCodeTypeRegister); err != nil {
+			return "", err
+		}
+	}
 	values := url.Values{}
 	values.Set("client_id", linuxDo.ClientID)
 	values.Set("redirect_uri", linuxDoRedirectURI(r))
 	values.Set("response_type", "code")
 	values.Set("scope", "read")
-	values.Set("state", base64.RawURLEncoding.EncodeToString([]byte(redirect)))
+	values.Set("state", encodeLinuxDoState(redirect, code))
 	return config.Cfg.LinuxDoAuthorizeURL + "?" + values.Encode(), nil
 }
 
 func LoginWithLinuxDo(r *http.Request, code string, state string) (model.AuthSession, string, error) {
-	redirect := decodeState(state)
+	statePayload := decodeLinuxDoState(state)
+	redirect := statePayload.Redirect
 	settings, err := repository.GetSettings()
 	if err != nil {
 		return model.AuthSession{}, redirect, err
@@ -171,9 +142,11 @@ func LoginWithLinuxDo(r *http.Request, code string, state string) (model.AuthSes
 		return model.AuthSession{}, redirect, err
 	}
 	if !ok {
-		if settings.Public.Auth.AllowRegister != nil && !*settings.Public.Auth.AllowRegister {
-			return model.AuthSession{}, redirect, safeMessageError{message: "当前未开放注册"}
+		invite, err := requireRegisterInviteCode(statePayload.Code)
+		if err != nil {
+			return model.AuthSession{}, redirect, err
 		}
+		changedAt := now()
 		user = model.User{
 			ID:          newID("user"),
 			Username:    linuxDoUsername(profile.Username, linuxDoID),
@@ -183,7 +156,34 @@ func LoginWithLinuxDo(r *http.Request, code string, state string) (model.AuthSes
 			AffCode:     newAffCode(),
 			LinuxDoID:   linuxDoID,
 			Status:      model.UserStatusActive,
-			CreatedAt:   now(),
+			CreatedAt:   changedAt,
+			UpdatedAt:   changedAt,
+		}
+		extra, _ := json.Marshal(userExtra{LinuxDo: profile})
+		user.Extra = string(extra)
+		user, _, err = repository.CreateLinuxDoUserWithInviteCode(user, invite, changedAt)
+		if err != nil {
+			recovered := false
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				if saved, ok, findErr := repository.GetUserByLinuxDoID(linuxDoID); findErr != nil {
+					return model.AuthSession{}, redirect, findErr
+				} else if ok {
+					if saved.Status == model.UserStatusBan {
+						return model.AuthSession{}, redirect, safeMessageError{message: "账号已被禁用"}
+					}
+					user = saved
+					recovered = true
+				}
+			}
+			if recovered {
+				err = nil
+			}
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return model.AuthSession{}, redirect, safeMessageError{message: "邀请码已用完"}
+				}
+				return model.AuthSession{}, redirect, err
+			}
 		}
 	} else if user.Status == model.UserStatusBan {
 		return model.AuthSession{}, redirect, safeMessageError{message: "账号已被禁用"}
@@ -579,16 +579,34 @@ func linuxDoAvatar(template string) string {
 	return strings.ReplaceAll(template, "{size}", "120")
 }
 
-func decodeState(state string) string {
+func encodeLinuxDoState(redirect string, code string) string {
+	redirect = strings.TrimSpace(redirect)
+	if !strings.HasPrefix(redirect, "/") {
+		redirect = "/"
+	}
+	payload, _ := json.Marshal(linuxDoState{
+		Redirect: redirect,
+		Code:     normalizeInviteCode(code),
+	})
+	return base64.RawURLEncoding.EncodeToString(payload)
+}
+
+func decodeLinuxDoState(state string) linuxDoState {
 	data, err := base64.RawURLEncoding.DecodeString(state)
 	if err != nil {
-		return "/"
+		return linuxDoState{Redirect: "/"}
 	}
-	redirect := string(data)
+	var payload linuxDoState
+	if err := json.Unmarshal(data, &payload); err != nil {
+		payload.Redirect = string(data)
+	}
+	redirect := strings.TrimSpace(payload.Redirect)
 	if !strings.HasPrefix(redirect, "/") {
-		return "/"
+		redirect = "/"
 	}
-	return redirect
+	payload.Redirect = redirect
+	payload.Code = normalizeInviteCode(payload.Code)
+	return payload
 }
 
 func RequestOrigin(r *http.Request) string {
@@ -597,6 +615,9 @@ func RequestOrigin(r *http.Request) string {
 		host = forwardedHeaderValue(r.Host)
 	}
 	host = strings.TrimRight(strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://"), "/")
+	if forwardedPort := forwardedHeaderValue(r.Header.Get("X-Forwarded-Port")); forwardedPort != "" && !strings.Contains(host, ":") {
+		host = net.JoinHostPort(host, forwardedPort)
+	}
 	proto := strings.ToLower(forwardedHeaderValue(r.Header.Get("X-Forwarded-Proto")))
 	if proto == "" {
 		proto = "http"

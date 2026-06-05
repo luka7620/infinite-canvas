@@ -42,8 +42,31 @@ type GalleryImage struct {
 	ShowPrompt       bool          `json:"showPrompt"`
 	Status           GalleryStatus `json:"status" gorm:"index"`
 	Recommended      bool          `json:"recommended" gorm:"index"`
+	LikeCount        int           `json:"likeCount"`
+	CommentCount     int           `json:"commentCount"`
+	Liked            bool          `json:"liked" gorm:"-"`
 	CreatedAt        string        `json:"createdAt"`
 	UpdatedAt        string        `json:"updatedAt"`
+}
+
+type GalleryLike struct {
+	ID        string `json:"id" gorm:"primaryKey"`
+	GalleryID string `json:"galleryId" gorm:"index;uniqueIndex:idx_gallery_like_user"`
+	UserID    string `json:"userId" gorm:"index;uniqueIndex:idx_gallery_like_user"`
+	CreatedAt string `json:"createdAt"`
+}
+
+type GalleryComment struct {
+	ID            string `json:"id" gorm:"primaryKey"`
+	GalleryID     string `json:"galleryId" gorm:"index"`
+	UserID        string `json:"userId" gorm:"index"`
+	Username      string `json:"username"`
+	DisplayName   string `json:"displayName"`
+	AvatarURL     string `json:"avatarUrl" gorm:"type:text"`
+	Content       string `json:"content" gorm:"type:text"`
+	Status        string `json:"status" gorm:"index"`
+	CreatedAt     string `json:"createdAt"`
+	UpdatedAt     string `json:"updatedAt"`
 }
 
 type GeneratedImageRecordList struct {
@@ -57,3 +80,12 @@ type GalleryImageList struct {
 	Total int            `json:"total"`
 }
 
+type GalleryCommentList struct {
+	Items []GalleryComment `json:"items"`
+	Total int              `json:"total"`
+}
+
+type GalleryLikeResult struct {
+	Image GalleryImage `json:"image"`
+	Liked bool         `json:"liked"`
+}

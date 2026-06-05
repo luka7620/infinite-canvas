@@ -15,6 +15,12 @@ const (
 	UserStatusBan    UserStatus = "ban"
 )
 
+type UserIdentityProvider string
+
+const (
+	UserIdentityProviderLinuxDo UserIdentityProvider = "linux-do"
+)
+
 // User 系统用户。
 type User struct {
 	ID              string     `json:"id" gorm:"primaryKey"`
@@ -37,6 +43,14 @@ type User struct {
 	Extra           string     `json:"extra" gorm:"type:text"`
 	CreatedAt       string     `json:"createdAt"`
 	UpdatedAt       string     `json:"updatedAt"`
+}
+
+type UserIdentity struct {
+	ID         string               `json:"id" gorm:"primaryKey"`
+	UserID     string               `json:"userId" gorm:"index"`
+	Provider   UserIdentityProvider `json:"provider" gorm:"index;uniqueIndex:idx_user_identity_provider_external"`
+	ExternalID string               `json:"externalId" gorm:"index;uniqueIndex:idx_user_identity_provider_external"`
+	CreatedAt  string               `json:"createdAt"`
 }
 
 // UserList 用户分页结果。
@@ -91,6 +105,7 @@ const (
 	CreditLogTypeAIConsume   CreditLogType = "ai_consume"
 	CreditLogTypeAIRefund    CreditLogType = "ai_refund"
 	CreditLogTypeCheckIn     CreditLogType = "check_in"
+	CreditLogTypeInviteCode  CreditLogType = "invite_code"
 )
 
 // CreditLog 用户算力点变更流水。

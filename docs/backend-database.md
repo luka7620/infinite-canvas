@@ -12,14 +12,21 @@
 - `mysql`
 - `postgresql`
 
+多实例部署时不要共享 SQLite 文件，应使用 `postgresql` 或 `mysql`。Redis 只作为可选缓存层使用，不替代数据库事务和唯一约束。
+
 当前启动时执行 `AutoMigrate`，自动维护以下表：
 
 - `users`
+- `user_identities`
 - `credit_logs`
+- `invite_codes`
+- `invite_code_uses`
 - `prompts`
 - `assets`
 - `generated_image_records`
 - `gallery_images`
+- `gallery_likes`
+- `gallery_comments`
 - `settings`
 
 后续新增表时再同步补充本文档，未实际使用的规划表不提前写入。
@@ -50,6 +57,20 @@
 | `extra`         | json   | 扩展信息，第三方资料按平台命名空间保存，如 `linuxDo` |
 | `created_at`    | string | 创建时间                     |
 | `updated_at`    | string | 更新时间                     |
+
+### user_identities
+
+第三方登录身份映射表。用于在并发首次注册时约束同一个第三方账号只能绑定到一个站内用户。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 主键 |
+| `user_id` | string | 站内用户 ID |
+| `provider` | string | 第三方登录平台，例如 `linux-do` |
+| `external_id` | string | 第三方平台用户 ID |
+| `created_at` | string | 创建时间 |
+
+`provider` 和 `external_id` 使用联合唯一索引。
 
 ### prompts
 
@@ -123,11 +144,41 @@
 | `height` | number | 图片高度 |
 | `mime_type` | string | 图片 MIME 类型 |
 | `model` | string | 生成模型 |
-| `prompt` | text | 生成提示词；前台仅在 `show_prompt` 为 true 时返回展示 |
+| `prompt` | text | 用户选择上传提示词时保存的生成提示词；前台仅在 `show_prompt` 为 true 时返回展示 |
 | `source` | string | 来源场景 |
 | `show_prompt` | bool | 是否公开提示词 |
 | `status` | string | 状态：`public`、`hidden`、`deleted` |
 | `recommended` | bool | 是否推荐 |
+| `like_count` | number | 点赞数 |
+| `comment_count` | number | 评论数 |
+| `created_at` | string | 创建时间 |
+| `updated_at` | string | 更新时间 |
+
+### gallery_likes
+
+画廊点赞记录表。一个用户对同一作品只能保留一条点赞记录。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 主键 |
+| `gallery_id` | string | 画廊作品 ID |
+| `user_id` | string | 点赞用户 ID |
+| `created_at` | string | 创建时间 |
+
+### gallery_comments
+
+画廊评论表。公开画廊作品的评论默认公开展示。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 主键 |
+| `gallery_id` | string | 画廊作品 ID |
+| `user_id` | string | 评论用户 ID |
+| `username` | string | 评论时用户名快照 |
+| `display_name` | string | 评论时展示名快照 |
+| `avatar_url` | text | 评论时头像快照 |
+| `content` | text | 评论内容 |
+| `status` | string | 评论状态，当前为 `public` |
 | `created_at` | string | 创建时间 |
 | `updated_at` | string | 更新时间 |
 
@@ -229,13 +280,13 @@
 
 ### credit_logs
 
-用户算力点变更流水表。当前记录后台手动调整、每日签到、模型调用预扣和模型调用失败返还。
+用户算力点变更流水表。当前记录后台手动调整、每日签到、邀请码兑换、模型调用预扣和模型调用失败返还。
 
 | 字段           | 类型     | 说明                       |
 |--------------|--------|--------------------------|
 | `id`         | string | 主键                       |
 | `user_id`    | string | 关联用户 ID                  |
-| `type`       | string | 类型：`admin_adjust`、`check_in`、`ai_consume`、`ai_refund` |
+| `type`       | string | 类型：`admin_adjust`、`check_in`、`invite_code`、`ai_consume`、`ai_refund` |
 | `amount`     | number | 本次变动数量，增加为正，扣减为负         |
 | `balance`    | number | 变动后的用户算力点余额              |
 | `related_id` | string | 关联业务 ID，可为空                |
@@ -249,5 +300,37 @@
 | --- | --- |
 | `admin_adjust` | 后台手动调整 |
 | `check_in` | 每日签到获得 |
+| `invite_code` | 邀请码兑换获得 |
 | `ai_consume` | 调用后端模型接口消费 |
 | `ai_refund` | 后端模型接口调用失败返还 |
+
+### invite_codes
+
+邀请码表。管理员在后台创建，可用于账号密码注册、Linux.do 首次注册，或兑换算力点。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 主键 |
+| `code` | string | 邀请码，唯一索引 |
+| `type` | string | 类型：`register`、`credits` |
+| `credits` | number | 兑换额度；注册码可为 0 |
+| `max_uses` | number | 最大使用次数；0 表示不限 |
+| `used_count` | number | 已使用次数 |
+| `enabled` | bool | 是否启用 |
+| `remark` | string | 备注 |
+| `created_at` | string | 创建时间 |
+| `updated_at` | string | 更新时间 |
+
+### invite_code_uses
+
+邀请码使用记录表。用于记录注册或兑换行为，并限制同一用户重复使用同一个兑换码。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 主键 |
+| `invite_code_id` | string | 邀请码 ID |
+| `code` | string | 使用时的邀请码文本 |
+| `user_id` | string | 使用用户 ID |
+| `type` | string | 使用类型：`register`、`credits` |
+| `credits` | number | 本次兑换额度 |
+| `created_at` | string | 创建时间 |

@@ -1,9 +1,9 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { App, Button } from "antd";
+import { App, Button, Input } from "antd";
 import Link from "next/link";
-import { CalendarCheck, CheckCircle2, Clock3, LogIn, Sparkles, WalletCards } from "lucide-react";
+import { CalendarCheck, CheckCircle2, Clock3, LogIn, Sparkles, TicketCheck, WalletCards } from "lucide-react";
 
 import { CreditSymbol } from "@/constant/credits";
 import type { AdminCheckInSettings } from "@/services/api/admin";
@@ -15,8 +15,11 @@ export default function CheckInPage() {
     const user = useUserStore((state) => state.user);
     const isReady = useUserStore((state) => state.isReady);
     const checkIn = useUserStore((state) => state.checkIn);
+    const redeemInviteCode = useUserStore((state) => state.redeemInviteCode);
     const checkInSetting = normalizeCheckInSetting(useConfigStore((state) => state.publicSettings?.checkIn));
     const [checkingIn, setCheckingIn] = useState(false);
+    const [redeeming, setRedeeming] = useState(false);
+    const [inviteCode, setInviteCode] = useState("");
     const checkedIn = user?.checkedInToday === true;
     const displayName = user?.displayName || user?.username || "创作者";
     const rewardValue = checkInRewardValue(checkInSetting);
@@ -32,6 +35,28 @@ export default function CheckInPage() {
             message.error(error instanceof Error ? error.message : "签到失败");
         } finally {
             setCheckingIn(false);
+        }
+    };
+
+    const doRedeem = async () => {
+        if (!user) {
+            message.warning("请先登录");
+            return;
+        }
+        const code = inviteCode.trim();
+        if (!code) {
+            message.warning("请输入兑换码");
+            return;
+        }
+        setRedeeming(true);
+        try {
+            const result = await redeemInviteCode(code);
+            message.success(`兑换成功，获得 ${result.credits} 算力点`);
+            setInviteCode("");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "兑换失败");
+        } finally {
+            setRedeeming(false);
         }
     };
 
@@ -91,6 +116,22 @@ export default function CheckInPage() {
                                 登录后签到
                             </Button>
                         )}
+
+                        <div className="mt-5 border-t border-border pt-5">
+                            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                <TicketCheck className="size-4" />
+                                兑换算力点
+                            </div>
+                            <Input.Search
+                                value={inviteCode}
+                                placeholder="输入兑换码"
+                                enterButton="兑换"
+                                loading={redeeming}
+                                disabled={!user || redeeming}
+                                onChange={(event) => setInviteCode(event.target.value)}
+                                onSearch={() => void doRedeem()}
+                            />
+                        </div>
 
                         <Link href="/canvas" className="mt-4 inline-flex w-full justify-center text-sm font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline">
                             返回我的画布

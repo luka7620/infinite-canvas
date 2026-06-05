@@ -27,9 +27,21 @@ export type CheckInResult = {
     credits: number;
 };
 
+export type InviteCodeRedeemResult = {
+    user: AuthUser;
+    inviteCode: {
+        id: string;
+        code: string;
+        type: "register" | "credits";
+        credits: number;
+    };
+    credits: number;
+};
+
 export type AuthPayload = {
     username: string;
     password: string;
+    code?: string;
 };
 
 export async function login(payload: AuthPayload) {
@@ -46,4 +58,8 @@ export async function fetchCurrentUser(token?: string) {
 
 export async function checkIn(token: string) {
     return apiPost<CheckInResult>("/api/auth/check-in", {}, token);
+}
+
+export async function redeemInviteCode(token: string, code: string) {
+    return apiPost<InviteCodeRedeemResult>("/api/auth/invite-codes/redeem", { code }, token);
 }

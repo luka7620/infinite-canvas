@@ -1,10 +1,13 @@
 package service
 
 import (
+	"errors"
+	"net/url"
 	"strings"
 
 	"github.com/basketikun/infinite-canvas/model"
 	"github.com/basketikun/infinite-canvas/repository"
+	"gorm.io/gorm"
 )
 
 type CreateGeneratedImageRecordInput struct {
@@ -33,6 +36,10 @@ type UpdateGalleryImageInput struct {
 	ShowPrompt  bool                `json:"showPrompt"`
 	Status      model.GalleryStatus `json:"status"`
 	Recommended bool                `json:"recommended"`
+}
+
+type CreateGalleryCommentInput struct {
+	Content string `json:"content"`
 }
 
 func CreateGeneratedImageRecord(input CreateGeneratedImageRecordInput) (model.GeneratedImageRecord, error) {
@@ -81,6 +88,9 @@ func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (m
 	if !isAllowedGeneratedImageSource(record.Source) {
 		return model.GalleryImage{}, safeMessageError{message: "该图片来源不支持发布到画廊"}
 	}
+	if !isCloudImageURL(record.ImageURL) || !isGPTImageModel(record.Model) {
+		return model.GalleryImage{}, safeMessageError{message: "只有使用云端链接的 GPT 模型生成图片可以上传到画廊"}
+	}
 	if record.IsPublished {
 		return model.GalleryImage{}, safeMessageError{message: "该图片已发布"}
 	}
@@ -93,9 +103,16 @@ func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (m
 	now := now()
 	title := strings.TrimSpace(input.Title)
 	if title == "" {
-		title = firstNonEmpty(strings.TrimSpace(record.Prompt), "未命名作品")
+		title = "未命名作品"
+		if input.ShowPrompt {
+			title = firstNonEmpty(strings.TrimSpace(record.Prompt), title)
+		}
 	}
 	title = truncateRunes(title, 60)
+	prompt := ""
+	if input.ShowPrompt {
+		prompt = record.Prompt
+	}
 	item := model.GalleryImage{
 		ID:               newID("gallery"),
 		GeneratedImageID: record.ID,
@@ -108,7 +125,7 @@ func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (m
 		Height:           record.Height,
 		MimeType:         record.MimeType,
 		Model:            record.Model,
-		Prompt:           record.Prompt,
+		Prompt:           prompt,
 		Source:           record.Source,
 		ShowPrompt:       input.ShowPrompt,
 		Status:           model.GalleryStatusPublic,
@@ -125,8 +142,12 @@ func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (m
 	return item, err
 }
 
-func ListGalleryImages(q model.Query) (model.GalleryImageList, error) {
+func ListGalleryImages(q model.Query, userID string) (model.GalleryImageList, error) {
 	items, total, err := repository.ListGalleryImages(q, false)
+	if err != nil {
+		return model.GalleryImageList{}, err
+	}
+	items, err = repository.MarkGalleryLiked(items, userID)
 	if err != nil {
 		return model.GalleryImageList{}, err
 	}
@@ -135,6 +156,62 @@ func ListGalleryImages(q model.Query) (model.GalleryImageList, error) {
 		return model.GalleryImageList{}, err
 	}
 	return model.GalleryImageList{Items: publicGalleryImages(items), Tags: tags, Total: int(total)}, nil
+}
+
+func ToggleGalleryLike(id string, user model.AuthUser) (model.GalleryLikeResult, error) {
+	if strings.TrimSpace(user.ID) == "" || user.Role == model.UserRoleGuest {
+		return model.GalleryLikeResult{}, safeMessageError{message: "请先登录"}
+	}
+	item, liked, err := repository.ToggleGalleryLike(strings.TrimSpace(id), user.ID, now())
+	if err != nil {
+		return model.GalleryLikeResult{}, galleryNotFoundError(err)
+	}
+	return model.GalleryLikeResult{Image: publicGalleryImage(item), Liked: liked}, nil
+}
+
+func ListGalleryComments(id string, q model.Query) (model.GalleryCommentList, error) {
+	if _, ok, err := repository.GetPublicGalleryImageByID(strings.TrimSpace(id)); err != nil || !ok {
+		if err != nil {
+			return model.GalleryCommentList{}, err
+		}
+		return model.GalleryCommentList{}, safeMessageError{message: "画廊作品不存在"}
+	}
+	items, total, err := repository.ListGalleryComments(strings.TrimSpace(id), q)
+	if err != nil {
+		return model.GalleryCommentList{}, err
+	}
+	return model.GalleryCommentList{Items: items, Total: int(total)}, nil
+}
+
+func CreateGalleryComment(id string, user model.AuthUser, input CreateGalleryCommentInput) (model.GalleryComment, error) {
+	if strings.TrimSpace(user.ID) == "" || user.Role == model.UserRoleGuest {
+		return model.GalleryComment{}, safeMessageError{message: "请先登录"}
+	}
+	content := strings.TrimSpace(input.Content)
+	if content == "" {
+		return model.GalleryComment{}, safeMessageError{message: "请输入评论内容"}
+	}
+	if len([]rune(content)) > 500 {
+		return model.GalleryComment{}, safeMessageError{message: "评论最多 500 字"}
+	}
+	now := now()
+	comment := model.GalleryComment{
+		ID:          newID("gcomment"),
+		GalleryID:   strings.TrimSpace(id),
+		UserID:      user.ID,
+		Username:    user.Username,
+		DisplayName: user.DisplayName,
+		AvatarURL:   user.AvatarURL,
+		Content:     content,
+		Status:      "public",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	comment, err := repository.SaveGalleryComment(comment, now)
+	if err != nil {
+		return model.GalleryComment{}, galleryNotFoundError(err)
+	}
+	return comment, nil
 }
 
 func ListAdminGalleryImages(q model.Query) (model.GalleryImageList, error) {
@@ -200,11 +277,23 @@ func AdminSetGalleryStatus(id string, status model.GalleryStatus) (model.Gallery
 
 func publicGalleryImages(items []model.GalleryImage) []model.GalleryImage {
 	for i := range items {
-		if !items[i].ShowPrompt {
-			items[i].Prompt = ""
-		}
+		items[i] = publicGalleryImage(items[i])
 	}
 	return items
+}
+
+func publicGalleryImage(item model.GalleryImage) model.GalleryImage {
+	if !item.ShowPrompt {
+		item.Prompt = ""
+	}
+	return item
+}
+
+func galleryNotFoundError(err error) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return safeMessageError{message: "画廊作品不存在"}
+	}
+	return err
 }
 
 func normalizeGeneratedImageSource(source string) string {
@@ -222,6 +311,22 @@ func isAllowedGeneratedImageSource(source string) bool {
 	default:
 		return false
 	}
+}
+
+func isCloudImageURL(value string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil {
+		return false
+	}
+	return parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https")
+}
+
+func isGPTImageModel(modelName string) bool {
+	name := strings.ToLower(strings.TrimSpace(modelName))
+	if index := strings.LastIndex(name, "/"); index >= 0 {
+		name = name[index+1:]
+	}
+	return strings.HasPrefix(name, "gpt-") || strings.HasPrefix(name, "gpt_") || strings.HasPrefix(name, "gpt4") || strings.HasPrefix(name, "gpt5")
 }
 
 func isValidGalleryStatus(status model.GalleryStatus) bool {

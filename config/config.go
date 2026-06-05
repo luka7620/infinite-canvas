@@ -17,6 +17,13 @@ type Config struct {
 	JWTExpireHours      int    `env:"JWT_EXPIRE_HOURS" envDefault:"168"`
 	StorageDriver       string `env:"STORAGE_DRIVER" envDefault:"sqlite"`
 	DatabaseDSN         string `env:"DATABASE_DSN" envDefault:"data/infinite-canvas.db"`
+	DatabaseMaxOpenConn int    `env:"DATABASE_MAX_OPEN_CONNS" envDefault:"0"`
+	DatabaseMaxIdleConn int    `env:"DATABASE_MAX_IDLE_CONNS" envDefault:"0"`
+	RedisAddr           string `env:"REDIS_ADDR" envDefault:""`
+	RedisPassword       string `env:"REDIS_PASSWORD" envDefault:""`
+	RedisDB             int    `env:"REDIS_DB" envDefault:"0"`
+	RedisCacheTTL       int    `env:"REDIS_CACHE_TTL_SECONDS" envDefault:"60"`
+	RedisKeyPrefix      string `env:"REDIS_KEY_PREFIX" envDefault:"infinite-canvas"`
 	LinuxDoAuthorizeURL string `env:"LINUX_DO_AUTHORIZE_URL" envDefault:"https://connect.linux.do/oauth2/authorize"`
 	LinuxDoTokenURL     string `env:"LINUX_DO_TOKEN_URL" envDefault:"https://connect.linux.do/oauth2/token"`
 	LinuxDoUserInfoURL  string `env:"LINUX_DO_USERINFO_URL" envDefault:"https://connect.linux.do/api/user"`

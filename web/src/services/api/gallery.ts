@@ -32,6 +32,22 @@ export type GalleryImage = {
     showPrompt: boolean;
     status: "public" | "hidden" | "deleted";
     recommended: boolean;
+    likeCount: number;
+    commentCount: number;
+    liked: boolean;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type GalleryComment = {
+    id: string;
+    galleryId: string;
+    userId: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string;
+    content: string;
+    status: string;
     createdAt: string;
     updatedAt: string;
 };
@@ -55,6 +71,16 @@ export type GalleryImageListResponse = {
     total: number;
 };
 
+export type GalleryCommentListResponse = {
+    items: GalleryComment[];
+    total: number;
+};
+
+export type GalleryLikeResponse = {
+    image: GalleryImage;
+    liked: boolean;
+};
+
 export type PublishGalleryImagePayload = {
     generatedImageId: string;
     title: string;
@@ -63,8 +89,8 @@ export type PublishGalleryImagePayload = {
     showPrompt: boolean;
 };
 
-export async function fetchGalleryImages(query: GalleryQuery = {}) {
-    return apiGet<GalleryImageListResponse>("/api/gallery", compactApiParams(query));
+export async function fetchGalleryImages(query: GalleryQuery = {}, token?: string) {
+    return apiGet<GalleryImageListResponse>("/api/gallery", compactApiParams(query), token);
 }
 
 export async function fetchGeneratedImages(token: string, query: GalleryQuery = {}) {
@@ -75,3 +101,14 @@ export async function publishGalleryImage(token: string, payload: PublishGallery
     return apiPost<GalleryImage>("/api/gallery", payload, token);
 }
 
+export async function toggleGalleryLike(token: string, id: string) {
+    return apiPost<GalleryLikeResponse>(`/api/gallery/${encodeURIComponent(id)}/like`, {}, token);
+}
+
+export async function fetchGalleryComments(id: string, query: GalleryQuery = {}) {
+    return apiGet<GalleryCommentListResponse>(`/api/gallery/${encodeURIComponent(id)}/comments`, compactApiParams(query));
+}
+
+export async function createGalleryComment(token: string, id: string, content: string) {
+    return apiPost<GalleryComment>(`/api/gallery/${encodeURIComponent(id)}/comments`, { content }, token);
+}

@@ -7,6 +7,25 @@
 | `public` | 公开配置，前端可以读取 |
 | `private` | 私有配置，只给后端和管理员使用 |
 
+## 部署环境变量
+
+多实例部署时建议使用 `deploy/docker-compose.lb.yml`，让多个 app 副本共享同一个 Postgres 和 Redis。
+
+| 变量 | 说明 |
+| --- | --- |
+| `JWT_SECRET` | 多实例必须固定一致，否则登录态会在不同副本间失效 |
+| `STORAGE_DRIVER` | 多实例使用 `postgres`，不要共享 SQLite 文件 |
+| `DATABASE_DSN` | Postgres/MySQL 连接字符串 |
+| `DATABASE_MAX_OPEN_CONNS` | 单个 app 副本最大数据库连接数，0 表示使用驱动默认值 |
+| `DATABASE_MAX_IDLE_CONNS` | 单个 app 副本最大空闲数据库连接数，0 表示使用驱动默认值 |
+| `REDIS_ADDR` | Redis 地址，留空表示不启用缓存 |
+| `REDIS_PASSWORD` | Redis 密码 |
+| `REDIS_DB` | Redis DB 编号 |
+| `REDIS_CACHE_TTL_SECONDS` | Redis 缓存过期时间，默认 60 秒 |
+| `REDIS_KEY_PREFIX` | Redis key 前缀，默认 `infinite-canvas` |
+
+当前 Redis 主要用于缓存系统配置等高频读、低频改的数据，并为多实例下的远程提示词定时同步提供分布式锁；注册、邀请码消耗和第三方账号绑定仍以数据库事务和唯一索引保证一致性。
+
 ## public.value
 
 ```json
@@ -83,8 +102,8 @@
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `allowRegister` | boolean | 是否允许用户注册，默认允许；关闭后注册入口隐藏，注册接口拒绝新用户创建 |
-| `linuxDo.enabled` | boolean | 是否开启 Linux.do 登录 |
+| `allowRegister` | boolean | 是否允许账号密码公开注册，默认允许；关闭后仍可通过有效注册邀请码创建账号 |
+| `linuxDo.enabled` | boolean | 是否开启 Linux.do 登录；已绑定账号可直接登录，Linux.do 首次创建账号时必须填写有效注册邀请码并消耗该邀请码 |
 
 ## private.value
 

@@ -18,6 +18,7 @@ type loginRequest struct {
 type registerRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	Code     string `json:"code"`
 }
 
 type saveUserRequest struct {
@@ -34,10 +35,23 @@ type adjustUserCreditsRequest struct {
 	Credits int `json:"credits"`
 }
 
+type redeemInviteCodeRequest struct {
+	Code string `json:"code"`
+}
+
+type batchInviteCodeRequest struct {
+	Type    model.InviteCodeType `json:"type"`
+	Count   int                  `json:"count"`
+	Credits int                  `json:"credits"`
+	MaxUses int                  `json:"maxUses"`
+	Enabled bool                 `json:"enabled"`
+	Remark  string               `json:"remark"`
+}
+
 func Register(w http.ResponseWriter, r *http.Request) {
 	var request registerRequest
 	_ = json.NewDecoder(r.Body).Decode(&request)
-	session, err := service.Register(request.Username, request.Password)
+	session, err := service.Register(request.Username, request.Password, request.Code)
 	if err != nil {
 		FailError(w, err)
 		return
@@ -57,9 +71,10 @@ func Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func LinuxDoAuthorize(w http.ResponseWriter, r *http.Request) {
-	authURL, err := service.LinuxDoAuthorizeURL(r, r.URL.Query().Get("redirect"))
+	redirect := r.URL.Query().Get("redirect")
+	authURL, err := service.LinuxDoAuthorizeURL(r, redirect, r.URL.Query().Get("code"))
 	if err != nil {
-		FailError(w, err)
+		http.Redirect(w, r, loginRedirect(r, redirect, "", err.Error()), http.StatusFound)
 		return
 	}
 	http.Redirect(w, r, authURL, http.StatusFound)
@@ -104,6 +119,22 @@ func CheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := service.CheckIn(user.ID)
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, result)
+}
+
+func RedeemInviteCode(w http.ResponseWriter, r *http.Request) {
+	user, ok := service.UserFromContext(r.Context())
+	if !ok || user.Role == model.UserRoleGuest {
+		Fail(w, "未登录或权限不足")
+		return
+	}
+	var request redeemInviteCodeRequest
+	_ = json.NewDecoder(r.Body).Decode(&request)
+	result, err := service.RedeemInviteCode(user.ID, service.RedeemInviteCodeInput{Code: request.Code})
 	if err != nil {
 		FailError(w, err)
 		return
@@ -171,6 +202,45 @@ func AdminSaveCreditLog(w http.ResponseWriter, r *http.Request) {
 
 func AdminDeleteCreditLog(w http.ResponseWriter, r *http.Request, id string) {
 	if err := service.DeleteCreditLog(id); err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, true)
+}
+
+func AdminInviteCodes(w http.ResponseWriter, r *http.Request) {
+	items, err := service.ListInviteCodes(parseQuery(r))
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, items)
+}
+
+func AdminSaveInviteCode(w http.ResponseWriter, r *http.Request) {
+	var item model.InviteCode
+	_ = json.NewDecoder(r.Body).Decode(&item)
+	result, err := service.SaveInviteCode(item)
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, result)
+}
+
+func AdminBatchInviteCodes(w http.ResponseWriter, r *http.Request) {
+	var request batchInviteCodeRequest
+	_ = json.NewDecoder(r.Body).Decode(&request)
+	result, err := service.BatchCreateInviteCodes(service.BatchInviteCodeInput(request))
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, result)
+}
+
+func AdminDeleteInviteCode(w http.ResponseWriter, r *http.Request, id string) {
+	if err := service.DeleteInviteCode(id); err != nil {
 		FailError(w, err)
 		return
 	}

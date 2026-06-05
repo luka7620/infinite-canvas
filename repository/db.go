@@ -45,13 +45,26 @@ func DB() (*gorm.DB, error) {
 		if dbErr != nil {
 			return
 		}
+		if sqlDB, err := db.DB(); err == nil {
+			if config.Cfg.DatabaseMaxOpenConn > 0 {
+				sqlDB.SetMaxOpenConns(config.Cfg.DatabaseMaxOpenConn)
+			}
+			if config.Cfg.DatabaseMaxIdleConn > 0 {
+				sqlDB.SetMaxIdleConns(config.Cfg.DatabaseMaxIdleConn)
+			}
+		}
 		dbErr = db.AutoMigrate(
 			&model.User{},
+			&model.UserIdentity{},
 			&model.CreditLog{},
+			&model.InviteCode{},
+			&model.InviteCodeUse{},
 			&model.Prompt{},
 			&model.Asset{},
 			&model.GeneratedImageRecord{},
 			&model.GalleryImage{},
+			&model.GalleryLike{},
+			&model.GalleryComment{},
 			&model.Setting{},
 		)
 	})

@@ -7,6 +7,7 @@ import { Home, ImageIcon, Images, List, Menu, MessageSquare, Plus, Redo2, Settin
 import { saveAs } from "file-saver";
 
 import { requestEdit, requestGeneration, requestImageQuestion } from "@/services/api/image";
+import { publishGalleryImage } from "@/services/api/gallery";
 import { requestVideoGeneration } from "@/services/api/video";
 import { defaultConfig, type AiConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { resolveImageUrl, uploadImage, type UploadedImage } from "@/services/image-storage";
@@ -19,7 +20,7 @@ import { useAssetStore } from "@/stores/use-asset-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { cropDataUrl } from "../utils/canvas-image-data";
 import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
-import { App, Button, Dropdown, Modal } from "antd";
+import { App, Button, Dropdown, Input, Modal, Switch } from "antd";
 import { NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
 import { ActiveConnectionPath, ConnectionPath } from "../components/canvas-connections";
 import { CanvasConfigNodePanel } from "../components/canvas-config-node-panel";
@@ -37,6 +38,7 @@ import { CanvasToolbar } from "../components/canvas-toolbar";
 import { AssetPickerModal, type AssetPickerTab, type InsertAssetPayload } from "../components/asset-picker-modal";
 import { CanvasZoomControls } from "../components/canvas-zoom-controls";
 import { useCanvasStore } from "../stores/use-canvas-store";
+import { useUserStore } from "@/stores/use-user-store";
 import {
     CanvasNodeType,
     type CanvasAssistantImage,
@@ -221,6 +223,7 @@ function InfiniteCanvasPage() {
     const isAiConfigReady = useConfigStore((state) => state.isAiConfigReady);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const addAsset = useAssetStore((state) => state.addAsset);
+    const token = useUserStore((state) => state.token);
     const cleanupAssetImages = useAssetStore((state) => state.cleanupImages);
     const hydrated = useCanvasStore((state) => state.hydrated);
     const createProject = useCanvasStore((state) => state.createProject);
@@ -262,6 +265,12 @@ function InfiniteCanvasPage() {
     const [cropNodeId, setCropNodeId] = useState<string | null>(null);
     const [angleNodeId, setAngleNodeId] = useState<string | null>(null);
     const [previewNodeId, setPreviewNodeId] = useState<string | null>(null);
+    const [publishingNodeId, setPublishingNodeId] = useState<string | null>(null);
+    const [publishTitle, setPublishTitle] = useState("");
+    const [publishDescription, setPublishDescription] = useState("");
+    const [publishTags, setPublishTags] = useState("");
+    const [publishShowPrompt, setPublishShowPrompt] = useState(false);
+    const [publishLoading, setPublishLoading] = useState(false);
     const [assistantCollapsed, setAssistantCollapsed] = useState(true);
     const [assistantMounted, setAssistantMounted] = useState(false);
     const [titleEditing, setTitleEditing] = useState(false);
@@ -547,6 +556,7 @@ function InfiniteCanvasPage() {
     const cropNode = cropNodeId ? nodeById.get(cropNodeId) || null : null;
     const angleNode = angleNodeId ? nodeById.get(angleNodeId) || null : null;
     const previewNode = previewNodeId ? nodeById.get(previewNodeId) || null : null;
+    const publishingNode = publishingNodeId ? nodeById.get(publishingNodeId) || null : null;
     const hasMultipleSelectedNodes = selectedNodeIds.size > 1;
     const activeNodeId = hasMultipleSelectedNodes ? null : hoveredNodeId || (selectedNodeIds.size === 1 ? Array.from(selectedNodeIds)[0] : null);
     const batchChildCountById = useMemo(() => {
@@ -1366,6 +1376,60 @@ function InfiniteCanvasPage() {
         [addAsset, message],
     );
 
+    const openPublishGalleryDialog = useCallback(
+        (node: CanvasNodeData) => {
+            if (node.type !== CanvasNodeType.Image || !node.metadata?.content) {
+                message.warning("请选择生成后的图片节点");
+                return;
+            }
+            if (!node.metadata.generatedImageId) {
+                message.warning("这张图片没有生成记录，暂不能上传到画廊");
+                return;
+            }
+            setPublishingNodeId(node.id);
+            setPublishTitle("画布作品");
+            setPublishDescription("");
+            setPublishTags("");
+            setPublishShowPrompt(false);
+        },
+        [message],
+    );
+
+    const publishCanvasNodeToGallery = useCallback(async () => {
+        if (!token) {
+            message.warning("请先登录");
+            return;
+        }
+        if (!publishingNode?.metadata?.generatedImageId) {
+            message.warning("这张图片没有生成记录，暂不能上传到画廊");
+            return;
+        }
+        const title = publishTitle.trim();
+        if (!title) {
+            message.warning("请输入标题");
+            return;
+        }
+        setPublishLoading(true);
+        try {
+            await publishGalleryImage(token, {
+                generatedImageId: publishingNode.metadata.generatedImageId,
+                title,
+                description: publishDescription.trim(),
+                tags: publishTags
+                    .split(",")
+                    .map((tag) => tag.trim())
+                    .filter(Boolean),
+                showPrompt: publishShowPrompt,
+            });
+            message.success("已上传到画廊");
+            setPublishingNodeId(null);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "上传失败");
+        } finally {
+            setPublishLoading(false);
+        }
+    }, [message, publishDescription, publishShowPrompt, publishTags, publishTitle, publishingNode, token]);
+
     const cropImageNode = useCallback(async (node: CanvasNodeData, crop: CanvasImageCropRect) => {
         if (!node.metadata?.content) return;
         const cropped = await cropDataUrl(node.metadata.content, crop);
@@ -2179,6 +2243,7 @@ function InfiniteCanvasPage() {
                     onUpload={(node) => handleUploadRequest(node.id)}
                     onDownload={downloadNodeImage}
                     onSaveAsset={(node) => void saveNodeAsset(node)}
+                    onPublishGallery={openPublishGalleryDialog}
                     onCrop={(node) => setCropNodeId(node.id)}
                     onAngle={(node) => setAngleNodeId(node.id)}
                     onViewImage={(node) => setPreviewNodeId(node.id)}
@@ -2258,6 +2323,40 @@ function InfiniteCanvasPage() {
                             style={{ maxWidth: "100%", maxHeight: "80vh", objectFit: "contain" }}
                         />
                     ) : null}
+                </Modal>
+
+                <Modal
+                    title="上传到画廊"
+                    open={Boolean(publishingNode)}
+                    centered
+                    confirmLoading={publishLoading}
+                    onCancel={() => setPublishingNodeId(null)}
+                    onOk={() => void publishCanvasNodeToGallery()}
+                    okText="上传"
+                    cancelText="取消"
+                >
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">仅支持上传使用云端链接的 GPT 模型生成图片。</p>
+                        <label className="block">
+                            <span className="mb-1.5 block text-sm font-medium">标题</span>
+                            <Input value={publishTitle} maxLength={60} onChange={(event) => setPublishTitle(event.target.value)} />
+                        </label>
+                        <label className="block">
+                            <span className="mb-1.5 block text-sm font-medium">描述</span>
+                            <Input.TextArea value={publishDescription} rows={3} onChange={(event) => setPublishDescription(event.target.value)} />
+                        </label>
+                        <label className="block">
+                            <span className="mb-1.5 block text-sm font-medium">标签，用逗号分隔</span>
+                            <Input value={publishTags} onChange={(event) => setPublishTags(event.target.value)} />
+                        </label>
+                        <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                            <div>
+                                <div className="text-sm font-medium">分享提示词</div>
+                                <div className="text-xs text-muted-foreground">关闭后画廊前台不会展示本次生成提示词。</div>
+                            </div>
+                            <Switch checked={publishShowPrompt} onChange={setPublishShowPrompt} />
+                        </div>
+                    </div>
                 </Modal>
 
                 <Modal

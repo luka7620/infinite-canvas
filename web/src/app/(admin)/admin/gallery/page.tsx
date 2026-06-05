@@ -104,6 +104,16 @@ export default function AdminGalleryPage() {
             render: (_, item) => <Tag color={item.recommended ? "gold" : "default"}>{item.recommended ? "是" : "否"}</Tag>,
         },
         {
+            title: "互动",
+            key: "engagement",
+            width: 120,
+            render: (_, item) => (
+                <Typography.Text type="secondary">
+                    赞 {item.likeCount || 0} / 评 {item.commentCount || 0}
+                </Typography.Text>
+            ),
+        },
+        {
             title: "操作",
             key: "actions",
             width: 156,
@@ -236,6 +246,7 @@ export default function AdminGalleryPage() {
                         <Space wrap>
                             <Tag color={statusLabels[detailImage.status]?.color}>{statusLabels[detailImage.status]?.label}</Tag>
                             <Tag>{detailImage.showPrompt ? "公开提示词" : "隐藏提示词"}</Tag>
+                            <Tag>赞 {detailImage.likeCount || 0} / 评 {detailImage.commentCount || 0}</Tag>
                             <Tag>{detailImage.model}</Tag>
                             {(detailImage.tags || []).map((tag) => (
                                 <Tag key={tag}>{tag}</Tag>

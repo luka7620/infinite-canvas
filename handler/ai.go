@@ -359,7 +359,7 @@ func sourceFromAIPath(path string) string {
 	if path == "/images/edits" {
 		return "canvas-edit"
 	}
-	return "image-page"
+	return "canvas-node"
 }
 
 func isImageProxyPath(path string) bool {

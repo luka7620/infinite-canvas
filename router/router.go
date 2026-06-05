@@ -22,6 +22,7 @@ func New() *gin.Engine {
 	api.GET("/auth/linux-do/callback", gin.WrapF(handler.LinuxDoCallback))
 	api.GET("/auth/me", middleware.OptionalAuth, gin.WrapF(handler.CurrentUser))
 	api.POST("/auth/check-in", middleware.UserAuth, gin.WrapF(handler.CheckIn))
+	api.POST("/auth/invite-codes/redeem", middleware.UserAuth, gin.WrapF(handler.RedeemInviteCode))
 	api.GET("/settings", gin.WrapF(handler.Settings))
 	v1 := api.Group("/v1", middleware.UserAuth)
 	v1.POST("/images/generations", gin.WrapF(handler.AIImagesGenerations))
@@ -37,8 +38,17 @@ func New() *gin.Engine {
 	api.GET("/prompts", middleware.OptionalAuth, gin.WrapF(handler.Prompts))
 	api.GET("/assets", middleware.OptionalAuth, gin.WrapF(handler.Assets))
 	api.GET("/gallery", middleware.OptionalAuth, gin.WrapF(handler.GalleryImages))
+	api.GET("/gallery/:id/comments", func(c *gin.Context) {
+		handler.GalleryComments(c.Writer, c.Request, c.Param("id"))
+	})
 	api.GET("/generated-images", middleware.UserAuth, gin.WrapF(handler.MyGeneratedImages))
 	api.POST("/gallery", middleware.UserAuth, gin.WrapF(handler.PublishGalleryImage))
+	api.POST("/gallery/:id/like", middleware.UserAuth, func(c *gin.Context) {
+		handler.ToggleGalleryLike(c.Writer, c.Request, c.Param("id"))
+	})
+	api.POST("/gallery/:id/comments", middleware.UserAuth, func(c *gin.Context) {
+		handler.CreateGalleryComment(c.Writer, c.Request, c.Param("id"))
+	})
 	api.POST("/admin/login", gin.WrapF(handler.AdminLogin))
 
 	admin := api.Group("/admin", middleware.AdminAuth)
@@ -54,6 +64,12 @@ func New() *gin.Engine {
 	admin.POST("/credit-logs", gin.WrapF(handler.AdminSaveCreditLog))
 	admin.DELETE("/credit-logs/:id", func(c *gin.Context) {
 		handler.AdminDeleteCreditLog(c.Writer, c.Request, c.Param("id"))
+	})
+	admin.GET("/invite-codes", gin.WrapF(handler.AdminInviteCodes))
+	admin.POST("/invite-codes", gin.WrapF(handler.AdminSaveInviteCode))
+	admin.POST("/invite-codes/batch", gin.WrapF(handler.AdminBatchInviteCodes))
+	admin.DELETE("/invite-codes/:id", func(c *gin.Context) {
+		handler.AdminDeleteInviteCode(c.Writer, c.Request, c.Param("id"))
 	})
 	admin.GET("/settings", gin.WrapF(handler.AdminSettings))
 	admin.POST("/settings", gin.WrapF(handler.AdminSaveSettings))

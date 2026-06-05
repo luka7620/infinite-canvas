@@ -447,7 +447,7 @@ export default function AdminSettingsPage() {
                                         </Form.Item>
                                     </Col>
                                     <Col span={24}>
-                                        <Form.Item name={["public", "auth", "allowRegister"]} label="是否允许用户注册" extra="关闭后隐藏注册入口，注册接口也会拒绝新用户创建" valuePropName="checked">
+                                        <Form.Item name={["public", "auth", "allowRegister"]} label="是否允许公开注册" extra="关闭后仅允许用户通过有效注册邀请码创建账号" valuePropName="checked">
                                             <Switch />
                                         </Form.Item>
                                     </Col>

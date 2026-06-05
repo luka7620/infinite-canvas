@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(ssh root@v2202605358237459415 *)",
-      "Bash(go build *)"
+      "Bash(go build *)",
+      "Bash(echo \"BUILD EXIT: $?\")",
+      "Bash(where go *)",
+      "Read(//c/Program Files/Go/**)",
+      "Read(//c/Users/23006/go/**)",
+      "Bash(go version *)",
+      "Read(//c/Go/**)",
+      "Read(//c/Users/23006/scoop/apps/go/current/**)",
+      "Bash(grep -iA3 -B1 \"like\\\\|comment\\\\|点赞\\\\|评论\")",
+      "Bash(docker version *)",
+      "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v C:/Users/23006/Documents/GitHub/infinite-canvas:/app -v infinite-canvas-gocache:/go -w /app -e GOPROXY=https://goproxy.cn,direct -e GOFLAGS=-buildvcs=false golang:1.25-alpine sh -c 'go build ./... && echo '\\\\''===BUILD_OK==='\\\\'' && go vet ./... && echo '\\\\''===VET_OK==='\\\\''')"
     ]
   }
 }

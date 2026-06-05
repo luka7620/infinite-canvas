@@ -3,6 +3,7 @@ package service
 import (
 	"log"
 	"sync"
+	"time"
 
 	"github.com/basketikun/infinite-canvas/model"
 	"github.com/basketikun/infinite-canvas/repository"
@@ -49,6 +50,12 @@ func RefreshPromptSyncScheduler() {
 }
 
 func SyncRemotePromptCategories() {
+	lockKey := repository.CacheKey("lock", "prompt-sync")
+	if !repository.CacheSetNX(lockKey, "1", 10*time.Minute) {
+		log.Printf("scheduled prompt sync skipped by redis lock")
+		return
+	}
+	defer repository.CacheDelete(lockKey)
 	for _, category := range repository.PromptCategories() {
 		if !category.Remote {
 			continue

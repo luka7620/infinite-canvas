@@ -227,11 +227,11 @@ export default function ImagePage() {
 
     const openPublishDialog = (image: GeneratedImage, index: number) => {
         if (!image.generatedImageId) {
-            message.warning("这张图片没有生成记录，暂不能发布到画廊");
+            message.warning("这张图片没有生成记录，暂不能上传到画廊");
             return;
         }
         setPublishingImage(image);
-        setPublishTitle(prompt.trim().slice(0, 32) || `生成作品 ${index + 1}`);
+        setPublishTitle(`生成作品 ${index + 1}`);
         setPublishDescription("");
         setPublishTags("");
         setPublishShowPrompt(false);
@@ -243,7 +243,7 @@ export default function ImagePage() {
             return;
         }
         if (!publishingImage?.generatedImageId) {
-            message.warning("这张图片没有生成记录，暂不能发布到画廊");
+            message.warning("这张图片没有生成记录，暂不能上传到画廊");
             return;
         }
         setPublishLoading(true);
@@ -258,10 +258,10 @@ export default function ImagePage() {
                     .filter(Boolean),
                 showPrompt: publishShowPrompt,
             });
-            message.success("已发布到画廊");
+            message.success("已上传到画廊");
             setPublishingImage(null);
         } catch (error) {
-            message.error(error instanceof Error ? error.message : "发布失败");
+            message.error(error instanceof Error ? error.message : "上传失败");
         } finally {
             setPublishLoading(false);
         }
@@ -337,7 +337,7 @@ export default function ImagePage() {
             const image = result[0];
             if (!image) throw new Error("接口没有返回图片");
             const meta = await readImageMeta(image.dataUrl);
-            const nextImage = { id: image.id, dataUrl: image.dataUrl, generatedImageId: image.generatedImageId, durationMs: performance.now() - itemStartedAt, width: meta.width, height: meta.height, bytes: getDataUrlByteSize(image.dataUrl) };
+            const nextImage = { id: image.id, dataUrl: image.dataUrl, generatedImageId: image.generatedImageId, durationMs: performance.now() - itemStartedAt, width: meta.width, height: meta.height, bytes: image.dataUrl.startsWith("data:") ? getDataUrlByteSize(image.dataUrl) : 0 };
             setResults((value) => updateResultAt(value, index, { status: "success", image: nextImage }));
             return nextImage;
         } catch (error) {
@@ -522,8 +522,9 @@ export default function ImagePage() {
             <Modal title="删除生成记录" open={deleteConfirmOpen} onCancel={() => setDeleteConfirmOpen(false)} onOk={deleteSelectedLogs} okText="删除" okButtonProps={{ danger: true }} cancelText="取消">
                 确定删除选中的 {selectedLogIds.length} 条生成记录吗？
             </Modal>
-            <Modal title="发布到画廊" open={Boolean(publishingImage)} confirmLoading={publishLoading} onCancel={() => setPublishingImage(null)} onOk={() => void publishImageToGallery()} okText="发布" cancelText="取消">
+            <Modal title="上传到画廊" open={Boolean(publishingImage)} confirmLoading={publishLoading} onCancel={() => setPublishingImage(null)} onOk={() => void publishImageToGallery()} okText="上传" cancelText="取消">
                 <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">仅支持上传使用云端链接的 GPT 模型生成图片。</p>
                     <label className="block">
                         <span className="mb-1.5 block text-sm font-medium">标题</span>
                         <Input value={publishTitle} maxLength={60} onChange={(event) => setPublishTitle(event.target.value)} />
@@ -596,7 +597,7 @@ function ResultImageCard({
                         添加到素材
                     </Button>
                     <Button size="small" icon={<Sparkles className="size-3.5" />} disabled={!image.generatedImageId} onClick={() => onPublish(image, index)}>
-                        发布画廊
+                        上传画廊
                     </Button>
                     <Button size="small" icon={<PenLine className="size-3.5" />} onClick={() => void onEdit(image, index)}>
                         加入参考图

@@ -52,8 +52,40 @@ export type AdminCreditLogListResponse = {
     total: number;
 };
 
+export type AdminInviteCode = {
+    id: string;
+    code: string;
+    type: "register" | "credits";
+    credits: number;
+    maxUses: number;
+    usedCount: number;
+    enabled: boolean;
+    remark: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type AdminInviteCodeListResponse = {
+    items: AdminInviteCode[];
+    total: number;
+};
+
+export type AdminInviteCodeBatchPayload = {
+    type: "register" | "credits";
+    count: number;
+    credits: number;
+    maxUses: number;
+    enabled: boolean;
+    remark?: string;
+};
+
+export type AdminInviteCodeBatchResponse = {
+    items: AdminInviteCode[];
+};
+
 export type AdminUserQuery = {
     keyword?: string;
+    type?: string;
     page?: number;
     pageSize?: number;
 };
@@ -84,6 +116,22 @@ export async function saveAdminCreditLog(token: string, log: Partial<AdminCredit
 
 export async function deleteAdminCreditLog(token: string, id: string) {
     return apiDelete<boolean>(`/api/admin/credit-logs/${encodeURIComponent(id)}`, token);
+}
+
+export async function fetchAdminInviteCodes(token: string, query: AdminUserQuery = {}) {
+    return apiGet<AdminInviteCodeListResponse>("/api/admin/invite-codes", compactApiParams(query), token);
+}
+
+export async function saveAdminInviteCode(token: string, item: Partial<AdminInviteCode>) {
+    return apiPost<AdminInviteCode>("/api/admin/invite-codes", item, token);
+}
+
+export async function batchCreateAdminInviteCodes(token: string, item: AdminInviteCodeBatchPayload) {
+    return apiPost<AdminInviteCodeBatchResponse>("/api/admin/invite-codes/batch", item, token);
+}
+
+export async function deleteAdminInviteCode(token: string, id: string) {
+    return apiDelete<boolean>(`/api/admin/invite-codes/${encodeURIComponent(id)}`, token);
 }
 
 export async function fetchAdminPromptCategories(token: string) {
