@@ -40,6 +40,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const checkedIn = user?.checkedInToday === true;
     const onCheckInPage = pathname === "/check-in";
     const showBalance = Boolean(user && !onCheckInPage);
+    const showVersion = user?.role !== "user";
     const avatarUrl = user?.avatarUrl?.trim();
     const avatarText = (userName.trim()[0] || "U").toUpperCase();
     const naturalIconClass = "inline-flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent [&_svg]:size-4";
@@ -70,7 +71,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
                 </button>
             ) : null}
             <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={naturalIconClass} style={iconStyle} aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} />
-            <VersionReleaseModal style={versionStyle} />
+            {showVersion ? <VersionReleaseModal style={versionStyle} /> : null}
             <GitHubLink className={cn("bg-transparent hover:bg-transparent dark:hover:bg-transparent", gitHubClassName)} style={gitHubStyle} />
             {showBalance ? (
                 <Tooltip title="当前算力点余额" placement="bottom">

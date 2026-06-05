@@ -1,6 +1,8 @@
 # 待测试
 
+- 全站中文品牌文案改为 `LukaLeng公益站`，包括顶部导航、后台侧边栏、登录页标识、画布库标题、新建画布默认名称和导出文件名；普通用户登录后右上角不再显示版本信息，管理员和未登录状态仍保留版本入口。
 - 修复 Caddy 反向代理下 Linux.do 登录回调地址丢失端口的问题：本地 `http://127.0.0.1:3100/api/auth/linux-do/authorize?redirect=%2Fadmin` 会生成带 `127.0.0.1:3100` 的 `redirect_uri`，回调成功或失败后返回 `/login` 也应保留同一端口。
+- 修复域名反向代理下 Linux.do 登录回调地址被内部端口污染的问题：通过 `http://art.luka77.cc` 访问时，授权回调和登录成功后的 `/login?redirect=...&token=...` 地址都不应带 `:3000`。
 - Linux.do 首次注册并发保护：同一个 Linux.do 账号同时触发多次 OAuth 回调时，只允许创建一个站内用户；后到的请求应回查已有绑定并继续登录，不应重复消耗邀请码或生成重复账号。
 - 新增 `deploy/docker-compose.lb.yml` 与 `deploy/Caddyfile` 作为 Postgres + Redis + Caddy 多实例部署样例；需要配置固定 `JWT_SECRET` 和 `POSTGRES_PASSWORD` 后通过 `docker compose -f deploy/docker-compose.lb.yml up -d --scale app=2` 验证多副本共享 Postgres、Redis 缓存和 Caddy 代理 `/api/health` 正常，本地镜像可用 `APP_IMAGE=infinite-canvas:local` 覆盖。
 - 新增服务器一键 Docker 部署入口：`deploy/docker-deploy.sh` 会下载 `deploy/docker-compose.server.yml` 和 `.env.server.example` 到执行命令时所在目录，生成随机管理员密码、JWT、Postgres 和 Redis 密码，创建本地持久化目录并拉起单实例应用本体、Postgres 和 Redis；需要在服务器先创建并进入部署目录，再通过 `curl -fsSL https://raw.githubusercontent.com/luka7620/infinite-canvas/main/deploy/docker-deploy.sh | bash` 验证，必要时用 `APP_IMAGE`、`SERVER_PORT` 覆盖默认配置。

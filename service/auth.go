@@ -614,10 +614,6 @@ func RequestOrigin(r *http.Request) string {
 	if host == "" {
 		host = forwardedHeaderValue(r.Host)
 	}
-	host = strings.TrimRight(strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://"), "/")
-	if forwardedPort := forwardedHeaderValue(r.Header.Get("X-Forwarded-Port")); forwardedPort != "" && !strings.Contains(host, ":") {
-		host = net.JoinHostPort(host, forwardedPort)
-	}
 	proto := strings.ToLower(forwardedHeaderValue(r.Header.Get("X-Forwarded-Proto")))
 	if proto == "" {
 		proto = "http"
@@ -625,7 +621,31 @@ func RequestOrigin(r *http.Request) string {
 	if proto != "http" && proto != "https" {
 		proto = "http"
 	}
+	host = originHost(host, proto)
 	return proto + "://" + host
+}
+
+func originHost(host string, proto string) string {
+	host = strings.TrimRight(strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(host), "https://"), "http://"), "/")
+	hostname, hostPort := splitOriginHostPort(host)
+	port := strings.TrimPrefix(strings.TrimSpace(hostPort), ":")
+	if port == "" || (proto == "http" && port == "80") || (proto == "https" && port == "443") {
+		return hostname
+	}
+	return net.JoinHostPort(hostname, port)
+}
+
+func splitOriginHostPort(host string) (string, string) {
+	hostname, port, err := net.SplitHostPort(host)
+	if err == nil {
+		return hostname, port
+	}
+	if strings.HasPrefix(host, "[") {
+		if end := strings.Index(host, "]"); end > 0 {
+			return host[1:end], ""
+		}
+	}
+	return host, ""
 }
 
 func forwardedHeaderValue(value string) string {

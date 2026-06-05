@@ -97,7 +97,7 @@ function LoginContent() {
                             mask: "url(/logo.svg) center / contain no-repeat",
                             WebkitMask: "url(/logo.svg) center / contain no-repeat",
                         }}
-                        aria-label="无限画布"
+                        aria-label="LukaLeng公益站"
                     />
                     <h1 className="text-2xl font-semibold tracking-normal text-foreground">账号登录</h1>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">支持账号密码和 Linux.do 登录。</p>
