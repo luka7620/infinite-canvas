@@ -3,6 +3,7 @@ out/
 node_modules/
 .env*
 !.env.example
+!deploy/.env.server.example
 data/
 docker-local-test/
 *.log
