@@ -139,3 +139,11 @@ func AdminSetGalleryStatus(w http.ResponseWriter, r *http.Request, id string) {
 	}
 	OK(w, result)
 }
+
+func AdminDeleteGalleryImage(w http.ResponseWriter, r *http.Request, id string) {
+	if err := service.DeleteAdminGalleryImage(id); err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, true)
+}

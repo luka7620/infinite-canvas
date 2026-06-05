@@ -14,23 +14,23 @@ const statusOptions = [
     { label: "全部状态", value: "" },
     { label: "公开", value: "public" },
     { label: "下架", value: "hidden" },
-    { label: "删除", value: "deleted" },
 ];
 
 const statusLabels: Record<GalleryImage["status"], { label: string; color: string }> = {
     public: { label: "公开", color: "green" },
     hidden: { label: "下架", color: "orange" },
-    deleted: { label: "删除", color: "red" },
 };
 
 export default function AdminGalleryPage() {
-    const { images, tags, keyword, status, tag, page, pageSize, total, isLoading, searchImages, changeStatus, changeTag, changePage, changePageSize, resetFilters, refreshImages, saveImage, setStatus } = useAdminGallery();
+    const { images, tags, keyword, status, tag, page, pageSize, total, isLoading, searchImages, changeStatus, changeTag, changePage, changePageSize, resetFilters, refreshImages, saveImage, setStatus, deleteImage } = useAdminGallery();
     const [form] = Form.useForm<GalleryFormValues>();
     const [keywordText, setKeywordText] = useState(keyword);
     const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
     const [detailImage, setDetailImage] = useState<GalleryImage | null>(null);
     const [statusImage, setStatusImage] = useState<{ item: GalleryImage; status: GalleryImage["status"] } | null>(null);
+    const [deletingImage, setDeletingImage] = useState<GalleryImage | null>(null);
     const tagOptions = tags.map((item) => ({ label: item, value: item }));
+    const editableStatusOptions = statusOptions.slice(1);
 
     useEffect(() => setKeywordText(keyword), [keyword]);
     useEffect(() => {
@@ -136,7 +136,7 @@ export default function AdminGalleryPage() {
                         </Button>
                     ) : null}
                     <Tooltip title="删除">
-                        <Button danger type="text" size="small" icon={<DeleteOutlined />} disabled={item.status === "deleted"} onClick={() => setStatusImage({ item, status: "deleted" })} />
+                        <Button danger type="text" size="small" icon={<DeleteOutlined />} onClick={() => setDeletingImage(item)} />
                     </Tooltip>
                 </Space>
             ),
@@ -225,7 +225,7 @@ export default function AdminGalleryPage() {
                         <Input />
                     </Form.Item>
                     <Form.Item name="status" label="状态">
-                        <Select options={statusOptions.slice(1)} />
+                        <Select options={editableStatusOptions} />
                     </Form.Item>
                     <Form.Item name="showPrompt" label="公开提示词" valuePropName="checked">
                         <Switch />
@@ -268,10 +268,25 @@ export default function AdminGalleryPage() {
                     setStatusImage(null);
                 }}
                 okText="确认"
-                okButtonProps={{ danger: statusImage?.status === "deleted" }}
                 cancelText="取消"
             >
                 确认将「{statusImage?.item.title}」状态改为「{statusImage ? statusLabels[statusImage.status].label : ""}」吗？
+            </Modal>
+
+            <Modal
+                title="删除画廊作品"
+                open={Boolean(deletingImage)}
+                onCancel={() => setDeletingImage(null)}
+                onOk={async () => {
+                    if (!deletingImage) return;
+                    await deleteImage(deletingImage.id);
+                    setDeletingImage(null);
+                }}
+                okText="删除"
+                okButtonProps={{ danger: true }}
+                cancelText="取消"
+            >
+                确认删除「{deletingImage?.title}」吗？删除后会同步清理数据库中的画廊作品、点赞和评论记录。
             </Modal>
         </main>
     );

@@ -95,6 +95,9 @@ func New() *gin.Engine {
 	admin.POST("/gallery/:id/status", func(c *gin.Context) {
 		handler.AdminSetGalleryStatus(c.Writer, c.Request, c.Param("id"))
 	})
+	admin.DELETE("/gallery/:id", func(c *gin.Context) {
+		handler.AdminDeleteGalleryImage(c.Writer, c.Request, c.Param("id"))
+	})
 
 	router.NoRoute(middleware.NotFoundJSON)
 

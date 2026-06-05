@@ -239,7 +239,7 @@ func UpdateAdminGalleryImage(id string, input UpdateGalleryImageInput) (model.Ga
 	item.Tags = normalizeTags(input.Tags)
 	item.ShowPrompt = input.ShowPrompt
 	if input.Status != "" {
-		if !isValidGalleryStatus(input.Status) {
+		if !isAdminEditableGalleryStatus(input.Status) {
 			return item, safeMessageError{message: "画廊状态无效"}
 		}
 		item.Status = input.Status
@@ -250,7 +250,7 @@ func UpdateAdminGalleryImage(id string, input UpdateGalleryImageInput) (model.Ga
 }
 
 func AdminSetGalleryStatus(id string, status model.GalleryStatus) (model.GalleryImage, error) {
-	if !isValidGalleryStatus(status) {
+	if !isAdminEditableGalleryStatus(status) {
 		return model.GalleryImage{}, safeMessageError{message: "画廊状态无效"}
 	}
 	item, ok, err := repository.GetGalleryImageByID(id)
@@ -262,17 +262,18 @@ func AdminSetGalleryStatus(id string, status model.GalleryStatus) (model.Gallery
 	}
 	item.Status = status
 	item.UpdatedAt = now()
-	item, err = repository.SaveGalleryImage(item)
-	if err == nil && status == model.GalleryStatusDeleted {
-		record, ok, recordErr := repository.GetGeneratedImageRecordByID(item.GeneratedImageID)
-		if recordErr == nil && ok {
-			record.IsPublished = false
-			record.UpdatedAt = now()
-			_, recordErr = repository.SaveGeneratedImageRecord(record)
+	return repository.SaveGalleryImage(item)
+}
+
+func DeleteAdminGalleryImage(id string) error {
+	item, ok, err := repository.GetGalleryImageByID(id)
+	if err != nil || !ok {
+		if err != nil {
+			return err
 		}
-		err = recordErr
+		return safeMessageError{message: "画廊作品不存在"}
 	}
-	return item, err
+	return repository.DeleteGalleryImage(item.ID, item.GeneratedImageID, now())
 }
 
 func publicGalleryImages(items []model.GalleryImage) []model.GalleryImage {
@@ -329,9 +330,9 @@ func isGPTImageModel(modelName string) bool {
 	return strings.HasPrefix(name, "gpt-") || strings.HasPrefix(name, "gpt_") || strings.HasPrefix(name, "gpt4") || strings.HasPrefix(name, "gpt5")
 }
 
-func isValidGalleryStatus(status model.GalleryStatus) bool {
+func isAdminEditableGalleryStatus(status model.GalleryStatus) bool {
 	switch status {
-	case model.GalleryStatusPublic, model.GalleryStatusHidden, model.GalleryStatusDeleted:
+	case model.GalleryStatusPublic, model.GalleryStatusHidden:
 		return true
 	default:
 		return false

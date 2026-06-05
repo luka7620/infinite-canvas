@@ -147,7 +147,7 @@
 | `prompt` | text | 用户选择上传提示词时保存的生成提示词；前台仅在 `show_prompt` 为 true 时返回展示 |
 | `source` | string | 来源场景 |
 | `show_prompt` | bool | 是否公开提示词 |
-| `status` | string | 状态：`public`、`hidden`、`deleted` |
+| `status` | string | 状态：`public`、`hidden`；后台删除会直接删除记录 |
 | `recommended` | bool | 是否推荐 |
 | `like_count` | number | 点赞数 |
 | `comment_count` | number | 评论数 |

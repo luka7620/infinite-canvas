@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { App } from "antd";
 
-import { fetchAdminGalleryImages, saveAdminGalleryImage, setAdminGalleryStatus } from "@/services/api/admin";
+import { deleteAdminGalleryImage, fetchAdminGalleryImages, saveAdminGalleryImage, setAdminGalleryStatus } from "@/services/api/admin";
 import type { GalleryImage } from "@/services/api/gallery";
 import { useUserStore } from "@/stores/use-user-store";
 
@@ -46,6 +46,15 @@ export function useAdminGallery() {
         onError: (error) => message.error(error instanceof Error ? error.message : "操作失败"),
     });
 
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => deleteAdminGalleryImage(token, id),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["admin", "gallery"] });
+            message.success("画廊作品已删除");
+        },
+        onError: (error) => message.error(error instanceof Error ? error.message : "删除失败"),
+    });
+
     useEffect(() => {
         if (!query.isError) return;
         const errorMessage = query.error instanceof Error ? query.error.message : "读取画廊失败";
@@ -74,7 +83,7 @@ export function useAdminGallery() {
         page,
         pageSize,
         total: data?.total || 0,
-        isLoading: query.isFetching || saveMutation.isPending || statusMutation.isPending,
+        isLoading: query.isFetching || saveMutation.isPending || statusMutation.isPending || deleteMutation.isPending,
         searchImages: (value = keyword) => updateFilters({ keyword: value }),
         changeStatus: (value: string) => updateFilters({ status: value, tag: [] }),
         changeTag: (value: string[]) => updateFilters({ tag: value }),
@@ -84,6 +93,6 @@ export function useAdminGallery() {
         refreshImages: () => query.refetch(),
         saveImage: (image: Partial<GalleryImage> & { id: string }) => saveMutation.mutateAsync(image),
         setStatus: (id: string, nextStatus: GalleryImage["status"]) => statusMutation.mutateAsync({ id, nextStatus }),
+        deleteImage: (id: string) => deleteMutation.mutateAsync(id),
     };
 }
-

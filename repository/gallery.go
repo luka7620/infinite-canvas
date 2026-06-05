@@ -116,6 +116,31 @@ func SaveGalleryImage(item model.GalleryImage) (model.GalleryImage, error) {
 	return item, db.Save(&item).Error
 }
 
+func DeleteGalleryImage(id string, generatedImageID string, now string) error {
+	db, err := DB()
+	if err != nil {
+		return err
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&model.GalleryLike{}, "gallery_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&model.GalleryComment{}, "gallery_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&model.GalleryImage{}, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if generatedImageID == "" {
+			return nil
+		}
+		return tx.Model(&model.GeneratedImageRecord{}).Where("id = ?", generatedImageID).Updates(map[string]any{
+			"is_published": false,
+			"updated_at":   now,
+		}).Error
+	})
+}
+
 func GetGalleryImageByID(id string) (model.GalleryImage, bool, error) {
 	db, err := DB()
 	if err != nil {
@@ -272,7 +297,7 @@ func galleryTagsFromItems(items []model.GalleryImage) []string {
 
 func isGalleryStatusOption(value string) bool {
 	switch model.GalleryStatus(value) {
-	case model.GalleryStatusPublic, model.GalleryStatusHidden, model.GalleryStatusDeleted:
+	case model.GalleryStatusPublic, model.GalleryStatusHidden:
 		return true
 	default:
 		return false

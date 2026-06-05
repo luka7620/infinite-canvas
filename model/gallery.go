@@ -3,9 +3,8 @@ package model
 type GalleryStatus string
 
 const (
-	GalleryStatusPublic  GalleryStatus = "public"
-	GalleryStatusHidden  GalleryStatus = "hidden"
-	GalleryStatusDeleted GalleryStatus = "deleted"
+	GalleryStatusPublic GalleryStatus = "public"
+	GalleryStatusHidden GalleryStatus = "hidden"
 )
 
 // GeneratedImageRecord 站内模型通道生成的图片记录。

@@ -1,5 +1,9 @@
 # 构建 Next.js 前端产物。
-FROM oven/bun:1.3.13 AS web-build
+ARG BUN_IMAGE=oven/bun:1.3.13
+ARG GO_IMAGE=golang:1.25-alpine
+ARG NODE_IMAGE=node:22-bookworm-slim
+
+FROM ${BUN_IMAGE} AS web-build
 
 WORKDIR /app/web
 COPY web/package.json web/bun.lock ./
@@ -10,9 +14,10 @@ COPY web ./
 RUN bun run build
 
 # 构建 Go 后端入口。
-FROM golang:1.25-alpine AS api-build
+FROM ${GO_IMAGE} AS api-build
 
 WORKDIR /app
+ENV GOPROXY=https://goproxy.cn|https://goproxy.io|https://proxy.golang.org|direct
 COPY go.mod go.sum ./
 COPY config ./config
 COPY handler ./handler
@@ -22,10 +27,10 @@ COPY repository ./repository
 COPY router ./router
 COPY service ./service
 COPY main.go ./
-RUN go build -o /server .
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build go build -o /server .
 
 # 运行镜像：Next.js 对外监听 3000，Go 只在容器内部监听 8080。
-FROM node:22-bookworm-slim
+FROM ${NODE_IMAGE}
 
 WORKDIR /app
 COPY VERSION /app/VERSION

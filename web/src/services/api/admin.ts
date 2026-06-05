@@ -218,6 +218,10 @@ export async function setAdminGalleryStatus(token: string, id: string, status: G
     return apiPost<GalleryImage>(`/api/admin/gallery/${encodeURIComponent(id)}/status`, { status }, token);
 }
 
+export async function deleteAdminGalleryImage(token: string, id: string) {
+    return apiDelete<boolean>(`/api/admin/gallery/${encodeURIComponent(id)}`, token);
+}
+
 export type AdminModelChannel = {
     protocol: "openai";
     name: string;

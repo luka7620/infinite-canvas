@@ -30,7 +30,7 @@ export type GalleryImage = {
     prompt?: string;
     source: string;
     showPrompt: boolean;
-    status: "public" | "hidden" | "deleted";
+    status: "public" | "hidden";
     recommended: boolean;
     likeCount: number;
     commentCount: number;
