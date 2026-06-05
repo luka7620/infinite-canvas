@@ -260,6 +260,7 @@ export type AdminPublicSettings = {
     modelChannel: AdminPublicModelChannelSettings;
     auth: {
         allowRegister: boolean;
+        registerCredits: number;
         linuxDo: {
             enabled: boolean;
         };

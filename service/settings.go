@@ -82,6 +82,9 @@ func normalizePublicSetting(setting model.PublicSetting) model.PublicSetting {
 		enabled := true
 		setting.Auth.AllowRegister = &enabled
 	}
+	if setting.Auth.RegisterCredits < 0 {
+		setting.Auth.RegisterCredits = 0
+	}
 	setting.CheckIn = normalizeCheckInRewardSetting(setting.CheckIn)
 	return setting
 }

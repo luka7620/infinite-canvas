@@ -13,6 +13,7 @@ type CreditLogFormValues = Partial<AdminCreditLog>;
 
 const creditLogTypeLabels: Record<string, string> = {
     admin_adjust: "后台调整",
+    register_bonus: "注册赠送",
     ai_consume: "模型消费",
     ai_refund: "失败返还",
     check_in: "每日签到",

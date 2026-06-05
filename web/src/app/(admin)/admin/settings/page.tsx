@@ -36,7 +36,7 @@ const emptySettings: AdminSettings = {
             systemPrompt: "",
             allowCustomChannel: true,
         },
-        auth: { allowRegister: true, linuxDo: { enabled: false } },
+        auth: { allowRegister: true, registerCredits: 0, linuxDo: { enabled: false } },
         checkIn: { mode: "fixed", credits: 10, minCredits: 10, maxCredits: 10 },
     },
     private: { channels: [], promptSync: { enabled: true, cron: "*/5 * * * *" }, auth: { linuxDo: { clientId: "", clientSecret: "" } } },
@@ -446,9 +446,14 @@ export default function AdminSettingsPage() {
                                             <Switch />
                                         </Form.Item>
                                     </Col>
-                                    <Col span={24}>
+                                    <Col xs={24} md={12}>
                                         <Form.Item name={["public", "auth", "allowRegister"]} label="是否允许公开注册" extra="关闭后仅允许用户通过有效注册邀请码创建账号" valuePropName="checked">
                                             <Switch />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={24} md={12}>
+                                        <Form.Item name={["public", "auth", "registerCredits"]} label="新用户初始额度" extra="账号密码注册和 Linux.do 首次创建账号都会获得该固定额度">
+                                            <InputNumber min={0} step={1} precision={0} className="!w-full" addonAfter="点" />
                                         </Form.Item>
                                     </Col>
                                     <Col span={24}>
@@ -874,6 +879,7 @@ function normalizePublicSetting(setting: Partial<AdminSettings["public"]> = {}):
         },
         auth: {
             allowRegister: setting.auth?.allowRegister !== false,
+            registerCredits: Math.max(0, Number(setting.auth?.registerCredits) || 0),
             linuxDo: {
                 enabled: setting.auth?.linuxDo?.enabled === true,
             },

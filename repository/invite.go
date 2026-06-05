@@ -63,7 +63,26 @@ func DeleteInviteCode(id string) error {
 	return db.Delete(&model.InviteCode{}, "id = ?", id).Error
 }
 
-func UseRegisterInviteCode(user model.User, invite model.InviteCode, now string) (model.User, model.InviteCode, error) {
+func CreateUserWithCreditLog(user model.User, log *model.CreditLog) (model.User, error) {
+	db, err := DB()
+	if err != nil {
+		return user, err
+	}
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&user).Error; err != nil {
+			return err
+		}
+		if log != nil {
+			return tx.Save(log).Error
+		}
+		return nil
+	}); err != nil {
+		return user, err
+	}
+	return user, nil
+}
+
+func UseRegisterInviteCode(user model.User, invite model.InviteCode, now string, log *model.CreditLog) (model.User, model.InviteCode, error) {
 	db, err := DB()
 	if err != nil {
 		return user, invite, err
@@ -94,6 +113,11 @@ func UseRegisterInviteCode(user model.User, invite model.InviteCode, now string)
 		if err := tx.Save(&use).Error; err != nil {
 			return err
 		}
+		if log != nil {
+			if err := tx.Save(log).Error; err != nil {
+				return err
+			}
+		}
 		return tx.First(&invite, "id = ?", invite.ID).Error
 	}); err != nil {
 		return user, invite, err
@@ -101,7 +125,7 @@ func UseRegisterInviteCode(user model.User, invite model.InviteCode, now string)
 	return user, invite, nil
 }
 
-func CreateLinuxDoUserWithInviteCode(user model.User, invite model.InviteCode, now string) (model.User, model.InviteCode, error) {
+func CreateLinuxDoUserWithInviteCode(user model.User, invite model.InviteCode, now string, log *model.CreditLog) (model.User, model.InviteCode, error) {
 	db, err := DB()
 	if err != nil {
 		return user, invite, err
@@ -116,6 +140,9 @@ func CreateLinuxDoUserWithInviteCode(user model.User, invite model.InviteCode, n
 			Provider:   model.UserIdentityProviderLinuxDo,
 			ExternalID: user.LinuxDoID,
 			CreatedAt:  now,
+		}
+		if err := deleteOrphanUserIdentity(tx, identity.ID); err != nil {
+			return err
 		}
 		if err := tx.Create(&identity).Error; err != nil {
 			return err
@@ -142,11 +169,34 @@ func CreateLinuxDoUserWithInviteCode(user model.User, invite model.InviteCode, n
 		if err := tx.Save(&use).Error; err != nil {
 			return err
 		}
+		if log != nil {
+			if err := tx.Save(log).Error; err != nil {
+				return err
+			}
+		}
 		return tx.First(&invite, "id = ?", invite.ID).Error
 	}); err != nil {
 		return user, invite, err
 	}
 	return user, invite, nil
+}
+
+func deleteOrphanUserIdentity(tx *gorm.DB, id string) error {
+	var identity model.UserIdentity
+	if err := tx.First(&identity, "id = ?", id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+	var total int64
+	if err := tx.Model(&model.User{}).Where("id = ?", identity.UserID).Count(&total).Error; err != nil {
+		return err
+	}
+	if total > 0 {
+		return nil
+	}
+	return tx.Delete(&model.UserIdentity{}, "id = ?", id).Error
 }
 
 func RedeemInviteCode(userID string, invite model.InviteCode, now string, log model.CreditLog) (model.User, model.InviteCode, bool, error) {

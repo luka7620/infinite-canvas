@@ -147,12 +147,14 @@ func LoginWithLinuxDo(r *http.Request, code string, state string) (model.AuthSes
 			return model.AuthSession{}, redirect, err
 		}
 		changedAt := now()
+		registerCredits := settings.Public.Auth.RegisterCredits
 		user = model.User{
 			ID:          newID("user"),
 			Username:    linuxDoUsername(profile.Username, linuxDoID),
 			DisplayName: strings.TrimSpace(profile.Name),
 			AvatarURL:   linuxDoAvatar(profile.AvatarTemplate),
 			Role:        model.UserRoleUser,
+			Credits:     registerCredits,
 			AffCode:     newAffCode(),
 			LinuxDoID:   linuxDoID,
 			Status:      model.UserStatusActive,
@@ -161,7 +163,7 @@ func LoginWithLinuxDo(r *http.Request, code string, state string) (model.AuthSes
 		}
 		extra, _ := json.Marshal(userExtra{LinuxDo: profile})
 		user.Extra = string(extra)
-		user, _, err = repository.CreateLinuxDoUserWithInviteCode(user, invite, changedAt)
+		user, _, err = repository.CreateLinuxDoUserWithInviteCode(user, invite, changedAt, registerBonusCreditLog(user.ID, registerCredits, changedAt))
 		if err != nil {
 			recovered := false
 			if !errors.Is(err, gorm.ErrRecordNotFound) {

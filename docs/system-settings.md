@@ -44,6 +44,7 @@
   },
   "auth": {
     "allowRegister": true,
+    "registerCredits": 0,
     "linuxDo": {
       "enabled": false
     }
@@ -103,6 +104,7 @@
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `allowRegister` | boolean | 是否允许账号密码公开注册，默认允许；关闭后仍可通过有效注册邀请码创建账号 |
+| `registerCredits` | number | 新注册用户获得的固定初始算力点，默认 0 |
 | `linuxDo.enabled` | boolean | 是否开启 Linux.do 登录；已绑定账号可直接登录，Linux.do 首次创建账号时必须填写有效注册邀请码并消耗该邀请码 |
 
 ## private.value

@@ -101,11 +101,12 @@ type CheckInResult struct {
 type CreditLogType string
 
 const (
-	CreditLogTypeAdminAdjust CreditLogType = "admin_adjust"
-	CreditLogTypeAIConsume   CreditLogType = "ai_consume"
-	CreditLogTypeAIRefund    CreditLogType = "ai_refund"
-	CreditLogTypeCheckIn     CreditLogType = "check_in"
-	CreditLogTypeInviteCode  CreditLogType = "invite_code"
+	CreditLogTypeAdminAdjust   CreditLogType = "admin_adjust"
+	CreditLogTypeRegisterBonus CreditLogType = "register_bonus"
+	CreditLogTypeAIConsume     CreditLogType = "ai_consume"
+	CreditLogTypeAIRefund      CreditLogType = "ai_refund"
+	CreditLogTypeCheckIn       CreditLogType = "check_in"
+	CreditLogTypeInviteCode    CreditLogType = "invite_code"
 )
 
 // CreditLog 用户算力点变更流水。

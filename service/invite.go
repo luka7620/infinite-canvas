@@ -142,20 +142,23 @@ func Register(username string, password string, code string) (model.AuthSession,
 		return model.AuthSession{}, err
 	}
 	now := now()
+	registerCredits := normalizedSettings.Public.Auth.RegisterCredits
 	user := model.User{
 		ID:        newID("user"),
 		Username:  username,
 		Password:  hash,
 		Role:      model.UserRoleUser,
+		Credits:   registerCredits,
 		AffCode:   newAffCode(),
 		Status:    model.UserStatusActive,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
+	creditLog := registerBonusCreditLog(user.ID, registerCredits, now)
 	if hasInvite {
-		user, invite, err = repository.UseRegisterInviteCode(user, invite, now)
+		user, invite, err = repository.UseRegisterInviteCode(user, invite, now, creditLog)
 	} else {
-		user, err = repository.SaveUser(user)
+		user, err = repository.CreateUserWithCreditLog(user, creditLog)
 	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -164,6 +167,21 @@ func Register(username string, password string, code string) (model.AuthSession,
 		return model.AuthSession{}, err
 	}
 	return newSession(user)
+}
+
+func registerBonusCreditLog(userID string, credits int, changedAt string) *model.CreditLog {
+	if credits <= 0 {
+		return nil
+	}
+	return &model.CreditLog{
+		ID:        newID("credit"),
+		UserID:    userID,
+		Type:      model.CreditLogTypeRegisterBonus,
+		Amount:    credits,
+		Balance:   credits,
+		Remark:    "注册赠送",
+		CreatedAt: changedAt,
+	}
 }
 
 func RedeemInviteCode(userID string, input RedeemInviteCodeInput) (model.InviteCodeRedeemResult, error) {
