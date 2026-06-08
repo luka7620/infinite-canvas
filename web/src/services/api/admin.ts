@@ -35,9 +35,62 @@ export type AdminUserListResponse = {
     total: number;
 };
 
+export type AdminStatsRange = "7d" | "30d" | "all";
+
+export type AdminStatsSummary = {
+    userTotal: number;
+    newUsers: number;
+    creditBalanceTotal: number;
+    creditConsumed: number;
+    creditRefunded: number;
+    generatedImages: number;
+    publicGalleryImages: number;
+    promptTotal: number;
+    assetTotal: number;
+    inviteCodeTotal: number;
+    inviteCodeEnabled: number;
+};
+
+export type AdminStatsTrendDay = {
+    date: string;
+    newUsers: number;
+    creditConsumed: number;
+    creditRefunded: number;
+    generatedImages: number;
+    galleryPublishes: number;
+};
+
+export type AdminStatsDistributionItem = {
+    key: string;
+    label: string;
+    value: number;
+};
+
+export type AdminStatsDistributions = {
+    userStatus: AdminStatsDistributionItem[];
+    loginSource: AdminStatsDistributionItem[];
+    creditLogType: AdminStatsDistributionItem[];
+    galleryStatus: AdminStatsDistributionItem[];
+    modelUsage: AdminStatsDistributionItem[];
+    assetType: AdminStatsDistributionItem[];
+};
+
+export type AdminStats = {
+    range: AdminStatsRange;
+    startDate: string;
+    endDate: string;
+    trendStartDate: string;
+    trendEndDate: string;
+    summary: AdminStatsSummary;
+    trends: AdminStatsTrendDay[];
+    distributions: AdminStatsDistributions;
+};
+
 export type AdminCreditLog = {
     id: string;
     userId: string;
+    username: string;
+    displayName: string;
     type: string;
     amount: number;
     balance: number;
@@ -92,6 +145,10 @@ export type AdminUserQuery = {
 
 export async function fetchAdminUsers(token: string, query: AdminUserQuery = {}) {
     return apiGet<AdminUserListResponse>("/api/admin/users", compactApiParams(query), token);
+}
+
+export async function fetchAdminStats(token: string, range: AdminStatsRange = "30d") {
+    return apiGet<AdminStats>("/api/admin/stats", compactApiParams({ range }), token);
 }
 
 export async function saveAdminUser(token: string, user: Partial<AdminUser> & { password?: string }) {

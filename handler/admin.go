@@ -21,6 +21,15 @@ func AdminPromptCategories(w http.ResponseWriter, r *http.Request) {
 	OK(w, service.ListPromptCategories())
 }
 
+func AdminStats(w http.ResponseWriter, r *http.Request) {
+	result, err := service.AdminStats(r.URL.Query().Get("range"))
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, result)
+}
+
 func AdminPrompts(w http.ResponseWriter, r *http.Request) {
 	result, err := service.ListPrompts(parseQuery(r))
 	if err != nil {

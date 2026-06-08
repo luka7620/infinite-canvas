@@ -41,10 +41,22 @@ export default function AdminCreditLogsPage() {
 
     const columns: ProColumns<AdminCreditLog>[] = [
         {
-            title: "用户 ID",
+            title: "用户",
             dataIndex: "userId",
-            width: 220,
-            render: (_, item) => <Typography.Text copyable>{item.userId}</Typography.Text>,
+            width: 260,
+            render: (_, item) => {
+                const name = item.displayName || item.username;
+                return (
+                    <Space direction="vertical" size={0}>
+                        <Typography.Text strong={Boolean(name)} type={name ? undefined : "secondary"}>
+                            {name || "未知用户"}
+                        </Typography.Text>
+                        <Typography.Text copyable type="secondary" style={{ fontSize: 12 }}>
+                            {item.userId}
+                        </Typography.Text>
+                    </Space>
+                );
+            },
         },
         {
             title: "类型",
@@ -101,7 +113,7 @@ export default function AdminCreditLogsPage() {
                         <Row gutter={16} align="bottom">
                             <Col flex="360px">
                                 <Form.Item label="关键词">
-                                    <Input.Search value={keywordText} placeholder="搜索用户 ID、类型、备注或关联 ID" allowClear enterButton={<SearchOutlined />} onSearch={() => searchLogs(keywordText)} onChange={(event) => setKeywordText(event.target.value)} />
+                                    <Input.Search value={keywordText} placeholder="搜索用户 ID、用户名、类型、备注或关联 ID" allowClear enterButton={<SearchOutlined />} onSearch={() => searchLogs(keywordText)} onChange={(event) => setKeywordText(event.target.value)} />
                                 </Form.Item>
                             </Col>
                             <Col flex="none">

@@ -122,7 +122,13 @@ type CreditLog struct {
 	CreatedAt string        `json:"createdAt"`
 }
 
+type AdminCreditLog struct {
+	CreditLog
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+}
+
 type CreditLogList struct {
-	Items []CreditLog `json:"items"`
-	Total int         `json:"total"`
+	Items []AdminCreditLog `json:"items"`
+	Total int              `json:"total"`
 }
