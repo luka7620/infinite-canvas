@@ -9,11 +9,31 @@ on:
 permissions:
   contents: read
 
+env:
+  IMAGE_NAME: luka762/infinite-canvas
+
 jobs:
   build:
+    name: Build ${{ matrix.platform }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
     steps:
       - uses: actions/checkout@v4
+
+      - name: Prepare platform
+        run: |
+          platform="${{ matrix.platform }}"
+          echo "platform_arch=${platform##*/}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-qemu-action@v3
+        if: matrix.platform == 'linux/arm64'
+        with:
+          platforms: arm64
 
       - uses: docker/setup-buildx-action@v3
 
@@ -25,19 +45,68 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: luka762/infinite-canvas
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
             type=ref,event=tag
             type=sha,prefix=sha-
 
-      - uses: docker/build-push-action@v6
+      - id: platform-tags
+        name: Create platform tags
+        run: |
+          {
+            echo "tags<<EOF"
+            while IFS= read -r tag; do
+              [ -n "$tag" ] && echo "${tag}-${{ env.platform_arch }}"
+            done <<< "${{ steps.meta.outputs.tags }}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: build
+        uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.platform-tags.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ env.platform_arch }}
+          cache-to: type=gha,mode=max,scope=${{ env.platform_arch }}
+
+  merge:
+    name: Merge manifests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+
+      - name: Create manifest list and push
+        run: |
+          tags=()
+          first_tag=""
+          while IFS= read -r tag; do
+            [ -z "$tag" ] && continue
+            tags+=("-t" "$tag")
+            [ -z "$first_tag" ] && first_tag="$tag"
+          done <<< "${{ steps.meta.outputs.tags }}"
+
+          docker buildx imagetools create \
+            "${tags[@]}" \
+            "${first_tag}-amd64" \
+            "${first_tag}-arm64"
