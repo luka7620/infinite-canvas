@@ -34,6 +34,12 @@ type userExtra struct {
 	LinuxDo any `json:"linuxDo,omitempty"`
 }
 
+type ProfileInput struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+	AvatarURL   string `json:"avatarUrl"`
+}
+
 type linuxDoState struct {
 	Redirect string `json:"redirect"`
 	Code     string `json:"code,omitempty"`
@@ -190,8 +196,8 @@ func LoginWithLinuxDo(r *http.Request, code string, state string) (model.AuthSes
 	} else if user.Status == model.UserStatusBan {
 		return model.AuthSession{}, redirect, safeMessageError{message: "账号已被禁用"}
 	}
-	user.DisplayName = firstNonEmpty(profile.Name, user.DisplayName)
-	user.AvatarURL = firstNonEmpty(linuxDoAvatar(profile.AvatarTemplate), user.AvatarURL)
+	user.DisplayName = firstNonEmpty(user.DisplayName, profile.Name)
+	user.AvatarURL = firstNonEmpty(user.AvatarURL, linuxDoAvatar(profile.AvatarTemplate))
 	user.LastLoginAt = now()
 	user.UpdatedAt = now()
 	extra, _ := json.Marshal(userExtra{LinuxDo: profile})
@@ -281,6 +287,9 @@ func ListUsers(q model.Query) (model.UserList, error) {
 
 func SaveUser(user model.User, password string) (model.User, error) {
 	user.Username = strings.TrimSpace(user.Username)
+	user.Email = strings.TrimSpace(user.Email)
+	user.DisplayName = strings.TrimSpace(user.DisplayName)
+	user.AvatarURL = strings.TrimSpace(user.AvatarURL)
 	if strings.ContainsAny(user.Username, " \t\r\n") {
 		return user, safeMessageError{message: "用户名不能包含空格"}
 	}
@@ -308,7 +317,6 @@ func SaveUser(user model.User, password string) (model.User, error) {
 	} else if ok {
 		user.CreatedAt = saved.CreatedAt
 		user.Password = saved.Password
-		user.AvatarURL = saved.AvatarURL
 		user.Credits = saved.Credits
 		user.LastCheckInDate = saved.LastCheckInDate
 		user.Extra = saved.Extra
@@ -337,6 +345,26 @@ func SaveUser(user model.User, password string) (model.User, error) {
 	user, err := repository.SaveUser(user)
 	user.Password = ""
 	return user, err
+}
+
+func SaveProfile(id string, input ProfileInput) (model.AuthUser, error) {
+	user, ok, err := repository.GetUserByID(id)
+	if err != nil {
+		return model.AuthUser{}, err
+	}
+	if !ok || user.Status == model.UserStatusBan {
+		return model.AuthUser{}, safeMessageError{message: "用户不存在或已被禁用"}
+	}
+	user.Username = input.Username
+	user.DisplayName = input.DisplayName
+	user.AvatarURL = input.AvatarURL
+	user, err = SaveUser(user, "")
+	if err != nil {
+		return model.AuthUser{}, err
+	}
+	authUser := model.PublicUser(user)
+	authUser.CheckedInToday = user.LastCheckInDate == checkInDate()
+	return authUser, nil
 }
 
 func AdjustUserCredits(id string, credits int) (model.User, error) {

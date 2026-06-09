@@ -1,8 +1,9 @@
 "use client";
 
 import type { CSSProperties, RefObject } from "react";
-import { Avatar, Dropdown, Tooltip } from "antd";
-import { CalendarCheck, Keyboard, LogOut, Settings2, Shield } from "lucide-react";
+import { useEffect, useState } from "react";
+import { App, Avatar, Dropdown, Form, Input, Modal, Tooltip } from "antd";
+import { CalendarCheck, Keyboard, LogOut, Settings2, Shield, UserPen } from "lucide-react";
 import type { ItemType } from "antd/es/menu/interface";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -28,10 +29,15 @@ type UserStatusActionsProps = {
 
 export function UserStatusActions({ showConfig = true, variant = "default", onOpenShortcuts, accountOpen, onAccountOpenChange, accountRef, getPopupContainer }: UserStatusActionsProps) {
     const pathname = usePathname();
+    const { message } = App.useApp();
+    const [profileForm] = Form.useForm<{ username: string; displayName: string; avatarUrl: string }>();
+    const [profileOpen, setProfileOpen] = useState(false);
+    const [savingProfile, setSavingProfile] = useState(false);
     const theme = useThemeStore((state) => state.theme);
     const setTheme = useThemeStore((state) => state.setTheme);
     const user = useUserStore((state) => state.user);
     const logout = useUserStore((state) => state.clearSession);
+    const saveProfile = useUserStore((state) => state.saveProfile);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const canvasTheme = canvasThemes[theme];
     const userName = user?.displayName || user?.username || "";
@@ -51,8 +57,30 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
             ? "flex h-8 shrink-0 items-center gap-1.5 px-1.5 text-xs font-medium tabular-nums opacity-75 transition hover:opacity-100"
             : "flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-2 text-xs font-semibold tabular-nums text-foreground transition hover:bg-secondary";
     const balanceStyle: CSSProperties | undefined = variant === "canvas" ? { color: canvasTheme.node.text } : undefined;
+
+    useEffect(() => {
+        if (profileOpen && user) {
+            profileForm.setFieldsValue({ username: user.username, displayName: user.displayName || "", avatarUrl: user.avatarUrl || "" });
+        }
+    }, [profileForm, profileOpen, user]);
+
+    const submitProfile = async () => {
+        const values = await profileForm.validateFields();
+        setSavingProfile(true);
+        try {
+            await saveProfile(values);
+            setProfileOpen(false);
+            message.success("账号资料已保存");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "保存失败");
+        } finally {
+            setSavingProfile(false);
+        }
+    };
+
     const menuItems: ItemType[] = [
         { key: "user", disabled: true, label: <span className="font-medium text-current">{userName}</span> },
+        { key: "profile", icon: <UserPen className="size-4" />, label: "账号资料", onClick: () => setProfileOpen(true) },
         { key: "check-in", icon: <CalendarCheck className="size-4" />, label: <Link href="/check-in">签到中心</Link> },
         ...(user?.role === "admin" ? [{ key: "admin", icon: <Shield className="size-4" />, label: <Link href="/admin">管理后台</Link> }] : []),
         ...(onOpenShortcuts ? [{ key: "shortcuts", icon: <Keyboard className="size-4" />, label: "快捷键", onClick: onOpenShortcuts }] : []),
@@ -111,6 +139,19 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
                     </Dropdown>
                 </div>
             ) : null}
+            <Modal title="账号资料" open={profileOpen} onCancel={() => setProfileOpen(false)} onOk={() => void submitProfile()} okText="保存" cancelText="取消" confirmLoading={savingProfile} destroyOnHidden>
+                <Form form={profileForm} layout="vertical" requiredMark={false}>
+                    <Form.Item name="username" label="用户名" rules={[{ required: true, message: "请输入用户名" }]}>
+                        <Input autoComplete="username" />
+                    </Form.Item>
+                    <Form.Item name="displayName" label="昵称">
+                        <Input />
+                    </Form.Item>
+                    <Form.Item name="avatarUrl" label="头像 URL">
+                        <Input placeholder="https://..." />
+                    </Form.Item>
+                </Form>
+            </Modal>
         </div>
     );
 }

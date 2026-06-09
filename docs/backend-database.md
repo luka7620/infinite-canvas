@@ -25,6 +25,7 @@
 - `assets`
 - `generated_image_records`
 - `gallery_images`
+- `gallery_image_files`
 - `gallery_likes`
 - `gallery_comments`
 - `settings`
@@ -139,7 +140,7 @@
 | `title` | string | 标题 |
 | `description` | text | 描述 |
 | `tags` | json | 标签列表 |
-| `image_url` | text | 展示图片地址 |
+| `image_url` | text | 展示图片地址；新发布作品保存为站内图片接口地址 |
 | `width` | number | 图片宽度 |
 | `height` | number | 图片高度 |
 | `mime_type` | string | 图片 MIME 类型 |
@@ -151,6 +152,21 @@
 | `recommended` | bool | 是否推荐 |
 | `like_count` | number | 点赞数 |
 | `comment_count` | number | 评论数 |
+| `created_at` | string | 创建时间 |
+| `updated_at` | string | 更新时间 |
+
+### gallery_image_files
+
+画廊图片文件表。新发布到画廊的作品会把上游图片下载后单独保存到数据库，避免上游临时链接失效导致画廊图片丢失。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 主键 |
+| `gallery_id` | string | 画廊作品 ID，唯一索引 |
+| `source_url` | text | 发布时的上游图片地址快照 |
+| `mime_type` | string | 图片 MIME 类型 |
+| `size` | number | 图片字节数 |
+| `data` | bytes | 图片二进制内容 |
 | `created_at` | string | 创建时间 |
 | `updated_at` | string | 更新时间 |
 

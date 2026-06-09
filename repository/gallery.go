@@ -120,12 +120,45 @@ func SaveGalleryImage(item model.GalleryImage) (model.GalleryImage, error) {
 	return item, db.Save(&item).Error
 }
 
+func CreateGalleryImageWithFile(item model.GalleryImage, file model.GalleryImageFile, record model.GeneratedImageRecord) (model.GalleryImage, error) {
+	db, err := DB()
+	if err != nil {
+		return item, err
+	}
+	err = db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&item).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&file).Error; err != nil {
+			return err
+		}
+		return tx.Save(&record).Error
+	})
+	return item, err
+}
+
+func GetGalleryImageFileByGalleryID(galleryID string) (model.GalleryImageFile, bool, error) {
+	db, err := DB()
+	if err != nil {
+		return model.GalleryImageFile{}, false, err
+	}
+	item := model.GalleryImageFile{}
+	err = db.Where("gallery_id = ?", galleryID).First(&item).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.GalleryImageFile{}, false, nil
+	}
+	return item, err == nil, err
+}
+
 func DeleteGalleryImage(id string, generatedImageID string, now string) error {
 	db, err := DB()
 	if err != nil {
 		return err
 	}
 	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&model.GalleryImageFile{}, "gallery_id = ?", id).Error; err != nil {
+			return err
+		}
 		if err := tx.Delete(&model.GalleryLike{}, "gallery_id = ?", id).Error; err != nil {
 			return err
 		}

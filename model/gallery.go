@@ -51,6 +51,18 @@ type GalleryImage struct {
 	UpdatedAt        string        `json:"updatedAt"`
 }
 
+// GalleryImageFile 画廊图片数据库副本。
+type GalleryImageFile struct {
+	ID        string `json:"id" gorm:"primaryKey"`
+	GalleryID string `json:"galleryId" gorm:"uniqueIndex"`
+	SourceURL string `json:"sourceUrl" gorm:"type:text"`
+	MimeType  string `json:"mimeType"`
+	Size      int64  `json:"size"`
+	Data      []byte `json:"-"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
 type GalleryLike struct {
 	ID        string `json:"id" gorm:"primaryKey"`
 	GalleryID string `json:"galleryId" gorm:"index;uniqueIndex:idx_gallery_like_user"`

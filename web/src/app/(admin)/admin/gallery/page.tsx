@@ -6,6 +6,7 @@ import { Button, Card, Col, Flex, Form, Image, Input, Modal, Row, Select, Space,
 import { useEffect, useState } from "react";
 
 import type { GalleryImage } from "@/services/api/gallery";
+import { useUserStore } from "@/stores/use-user-store";
 import { useAdminGallery } from "./use-admin-gallery";
 
 type GalleryFormValues = Partial<GalleryImage> & { tagText?: string };
@@ -23,6 +24,8 @@ const statusLabels: Record<GalleryImage["status"], { label: string; color: strin
 
 export default function AdminGalleryPage() {
     const { images, tags, keyword, status, tag, page, pageSize, total, isLoading, searchImages, changeStatus, changeTag, changePage, changePageSize, resetFilters, refreshImages, saveImage, setStatus, deleteImage } = useAdminGallery();
+    const token = useUserStore((state) => state.token);
+    const imageUrls = useAdminGalleryImageUrls(images, token);
     const [form] = Form.useForm<GalleryFormValues>();
     const [keywordText, setKeywordText] = useState(keyword);
     const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
@@ -56,7 +59,7 @@ export default function AdminGalleryPage() {
             title: "图片",
             dataIndex: "imageUrl",
             width: 92,
-            render: (_, item) => <Image src={item.imageUrl} alt={item.title} width={58} height={58} style={{ objectFit: "cover", borderRadius: 8 }} preview={{ mask: "放大" }} />,
+            render: (_, item) => <Image src={imageUrls[item.id] || item.imageUrl} alt={item.title} width={58} height={58} style={{ objectFit: "cover", borderRadius: 8 }} preview={{ mask: "放大" }} />,
         },
         {
             title: "作品",
@@ -239,7 +242,7 @@ export default function AdminGalleryPage() {
             <Modal title="画廊作品详情" open={Boolean(detailImage)} width={820} onCancel={() => setDetailImage(null)} footer={<Button onClick={() => setDetailImage(null)}>关闭</Button>}>
                 {detailImage ? (
                     <Flex vertical gap={14}>
-                        <Image src={detailImage.imageUrl} alt={detailImage.title} width="100%" style={{ maxHeight: 420, objectFit: "contain", borderRadius: 8 }} />
+                        <Image src={imageUrls[detailImage.id] || detailImage.imageUrl} alt={detailImage.title} width="100%" style={{ maxHeight: 420, objectFit: "contain", borderRadius: 8 }} />
                         <Typography.Title level={5} style={{ margin: 0 }}>
                             {detailImage.title}
                         </Typography.Title>
@@ -290,4 +293,53 @@ export default function AdminGalleryPage() {
             </Modal>
         </main>
     );
+}
+
+function useAdminGalleryImageUrls(images: GalleryImage[], token: string) {
+    const [urls, setUrls] = useState<Record<string, string>>({});
+    const imageKey = images.map((item) => item.id).join(",");
+
+    useEffect(() => {
+        const imageIds = imageKey ? imageKey.split(",") : [];
+        if (!token || !imageIds.length) {
+            setUrls((current) => (Object.keys(current).length ? {} : current));
+            return;
+        }
+        let cancelled = false;
+        const createdUrls: string[] = [];
+
+        const load = async () => {
+            const nextUrls: Record<string, string> = {};
+            await Promise.all(
+                imageIds.map(async (id) => {
+                    try {
+                        const response = await fetch(`/api/admin/gallery/${encodeURIComponent(id)}/image`, {
+                            headers: { Authorization: `Bearer ${token}` },
+                        });
+                        const blob = await response.blob();
+                        if (!response.ok || !blob.type.startsWith("image/")) return;
+                        const objectUrl = URL.createObjectURL(blob);
+                        if (cancelled) {
+                            URL.revokeObjectURL(objectUrl);
+                            return;
+                        }
+                        createdUrls.push(objectUrl);
+                        nextUrls[id] = objectUrl;
+                    } catch {
+                        // 图片预览失败时保留接口返回的原始 URL 作为兜底。
+                    }
+                }),
+            );
+            if (!cancelled) setUrls(nextUrls);
+        };
+
+        setUrls({});
+        void load();
+        return () => {
+            cancelled = true;
+            createdUrls.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, [imageKey, token]);
+
+    return urls;
 }

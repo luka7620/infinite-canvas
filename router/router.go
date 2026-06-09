@@ -21,6 +21,7 @@ func New() *gin.Engine {
 	api.GET("/auth/linux-do/authorize", gin.WrapF(handler.LinuxDoAuthorize))
 	api.GET("/auth/linux-do/callback", gin.WrapF(handler.LinuxDoCallback))
 	api.GET("/auth/me", middleware.OptionalAuth, gin.WrapF(handler.CurrentUser))
+	api.POST("/auth/profile", middleware.UserAuth, gin.WrapF(handler.SaveProfile))
 	api.POST("/auth/check-in", middleware.UserAuth, gin.WrapF(handler.CheckIn))
 	api.POST("/auth/invite-codes/redeem", middleware.UserAuth, gin.WrapF(handler.RedeemInviteCode))
 	api.GET("/settings", gin.WrapF(handler.Settings))
@@ -38,6 +39,9 @@ func New() *gin.Engine {
 	api.GET("/prompts", middleware.OptionalAuth, gin.WrapF(handler.Prompts))
 	api.GET("/assets", middleware.OptionalAuth, gin.WrapF(handler.Assets))
 	api.GET("/gallery", middleware.OptionalAuth, gin.WrapF(handler.GalleryImages))
+	api.GET("/gallery/:id/image", func(c *gin.Context) {
+		handler.GalleryImageFile(c.Writer, c.Request, c.Param("id"))
+	})
 	api.GET("/gallery/:id/comments", func(c *gin.Context) {
 		handler.GalleryComments(c.Writer, c.Request, c.Param("id"))
 	})
@@ -90,6 +94,9 @@ func New() *gin.Engine {
 		handler.AdminDeleteAsset(c.Writer, c.Request, c.Param("id"))
 	})
 	admin.GET("/gallery", gin.WrapF(handler.AdminGalleryImages))
+	admin.GET("/gallery/:id/image", func(c *gin.Context) {
+		handler.AdminGalleryImageFile(c.Writer, c.Request, c.Param("id"))
+	})
 	admin.POST("/gallery/:id", func(c *gin.Context) {
 		handler.AdminSaveGalleryImage(c.Writer, c.Request, c.Param("id"))
 	})

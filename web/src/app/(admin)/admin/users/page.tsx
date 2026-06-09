@@ -215,6 +215,12 @@ export default function AdminUsersPage() {
                                 <Input />
                             </Form.Item>
                         </Col>
+                        <Col span={24}>
+                            <Form.Item name="avatarUrl" label="头像 URL">
+                                <Input placeholder="https://..." />
+                            </Form.Item>
+                        </Col>
+
                         <Col span={12}>
                             <Form.Item name="role" label="角色" rules={[{ required: true, message: "请选择角色" }]}>
                                 <Select options={roleOptions} />

@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { AUTH_TOKEN_KEY, checkIn, fetchCurrentUser, login, redeemInviteCode, register, type AuthPayload, type AuthUser } from "@/services/api/auth";
+import { AUTH_TOKEN_KEY, checkIn, fetchCurrentUser, login, redeemInviteCode, register, saveProfile, type AuthPayload, type AuthUser, type ProfilePayload } from "@/services/api/auth";
 
 type UserStore = {
     token: string;
@@ -13,6 +13,7 @@ type UserStore = {
     setSession: (token: string, user: AuthUser) => void;
     clearSession: () => void;
     hydrateUser: () => Promise<void>;
+    saveProfile: (payload: ProfilePayload) => Promise<AuthUser>;
     checkIn: () => Promise<{ user: AuthUser; credits: number }>;
     redeemInviteCode: (code: string) => Promise<{ user: AuthUser; credits: number }>;
     login: (payload: AuthPayload) => Promise<AuthUser>;
@@ -45,6 +46,13 @@ export const useUserStore = create<UserStore>()(
                 } catch {
                     set({ token: "", user: null, isReady: true, isLoading: false });
                 }
+            },
+            saveProfile: async (payload) => {
+                const token = get().token;
+                if (!token) throw new Error("请先登录");
+                const user = await saveProfile(token, payload);
+                set({ user, isReady: true });
+                return user;
             },
             checkIn: async () => {
                 const token = get().token;

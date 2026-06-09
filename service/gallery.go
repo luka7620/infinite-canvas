@@ -1,14 +1,34 @@
 package service
 
 import (
+	"bytes"
 	"errors"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
+	"mime"
+	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/basketikun/infinite-canvas/model"
 	"github.com/basketikun/infinite-canvas/repository"
 	"gorm.io/gorm"
 )
+
+const maxGalleryImageFileBytes int64 = 32 << 20
+
+var galleryImageHTTPClient = http.Client{Timeout: 30 * time.Second}
+
+type downloadedGalleryImage struct {
+	Data     []byte
+	MimeType string
+	Width    int
+	Height   int
+}
 
 type CreateGeneratedImageRecordInput struct {
 	UserID   string `json:"userId"`
@@ -100,7 +120,21 @@ func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (m
 		}
 		return model.GalleryImage{}, safeMessageError{message: "该图片已发布"}
 	}
+	downloaded, err := downloadGalleryImage(record.ImageURL)
+	if err != nil {
+		return model.GalleryImage{}, err
+	}
 	now := now()
+	galleryID := newID("gallery")
+	if record.Width <= 0 {
+		record.Width = downloaded.Width
+	}
+	if record.Height <= 0 {
+		record.Height = downloaded.Height
+	}
+	if record.MimeType == "" {
+		record.MimeType = downloaded.MimeType
+	}
 	title := strings.TrimSpace(input.Title)
 	if title == "" {
 		title = "未命名作品"
@@ -114,7 +148,7 @@ func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (m
 		prompt = record.Prompt
 	}
 	item := model.GalleryImage{
-		ID:               newID("gallery"),
+		ID:               galleryID,
 		GeneratedImageID: record.ID,
 		UserID:           user.ID,
 		Username:         user.Username,
@@ -123,7 +157,7 @@ func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (m
 		Title:            title,
 		Description:      strings.TrimSpace(input.Description),
 		Tags:             normalizeTags(input.Tags),
-		ImageURL:         record.ImageURL,
+		ImageURL:         galleryImageURL(galleryID),
 		Width:            record.Width,
 		Height:           record.Height,
 		MimeType:         record.MimeType,
@@ -135,13 +169,19 @@ func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (m
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
-	item, err = repository.SaveGalleryImage(item)
-	if err != nil {
-		return item, err
+	file := model.GalleryImageFile{
+		ID:        newID("gfile"),
+		GalleryID: galleryID,
+		SourceURL: record.ImageURL,
+		MimeType:  downloaded.MimeType,
+		Size:      int64(len(downloaded.Data)),
+		Data:      downloaded.Data,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	record.IsPublished = true
 	record.UpdatedAt = now
-	_, err = repository.SaveGeneratedImageRecord(record)
+	item, err = repository.CreateGalleryImageWithFile(item, file, record)
 	return item, err
 }
 
@@ -279,6 +319,34 @@ func DeleteAdminGalleryImage(id string) error {
 	return repository.DeleteGalleryImage(item.ID, item.GeneratedImageID, now())
 }
 
+func GetGalleryImageFile(id string, admin bool) (model.GalleryImageFile, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return model.GalleryImageFile{}, safeMessageError{message: "画廊作品不存在"}
+	}
+	var ok bool
+	var err error
+	if admin {
+		_, ok, err = repository.GetGalleryImageByID(id)
+	} else {
+		_, ok, err = repository.GetPublicGalleryImageByID(id)
+	}
+	if err != nil || !ok {
+		if err != nil {
+			return model.GalleryImageFile{}, err
+		}
+		return model.GalleryImageFile{}, safeMessageError{message: "画廊作品不存在"}
+	}
+	file, ok, err := repository.GetGalleryImageFileByGalleryID(id)
+	if err != nil {
+		return model.GalleryImageFile{}, err
+	}
+	if !ok {
+		return model.GalleryImageFile{}, safeMessageError{message: "画廊图片不存在"}
+	}
+	return file, nil
+}
+
 func publicGalleryImages(items []model.GalleryImage) []model.GalleryImage {
 	for i := range items {
 		items[i] = publicGalleryImage(items[i])
@@ -323,6 +391,81 @@ func isCloudImageURL(value string) bool {
 		return false
 	}
 	return parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https")
+}
+
+func galleryImageURL(id string) string {
+	return "/api/gallery/" + url.PathEscape(id) + "/image"
+}
+
+func downloadGalleryImage(imageURL string) (downloadedGalleryImage, error) {
+	request, err := http.NewRequest(http.MethodGet, strings.TrimSpace(imageURL), nil)
+	if err != nil {
+		return downloadedGalleryImage{}, safeMessageError{message: "画廊图片保存失败"}
+	}
+	response, err := galleryImageHTTPClient.Do(request)
+	if err != nil {
+		return downloadedGalleryImage{}, safeMessageError{message: "画廊图片保存失败"}
+	}
+	defer response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusBadRequest {
+		return downloadedGalleryImage{}, safeMessageError{message: "画廊图片保存失败"}
+	}
+	data, err := io.ReadAll(io.LimitReader(response.Body, maxGalleryImageFileBytes+1))
+	if err != nil {
+		return downloadedGalleryImage{}, err
+	}
+	if int64(len(data)) > maxGalleryImageFileBytes {
+		return downloadedGalleryImage{}, safeMessageError{message: "画廊图片不能超过 32MB"}
+	}
+	mimeType := galleryImageMimeType(response.Header.Get("Content-Type"), data)
+	if len(data) == 0 || !isAllowedGalleryImageMimeType(mimeType) {
+		return downloadedGalleryImage{}, safeMessageError{message: "画廊图片文件无效"}
+	}
+	width, height := galleryImageSize(data)
+	return downloadedGalleryImage{Data: data, MimeType: mimeType, Width: width, Height: height}, nil
+}
+
+func galleryImageMimeType(contentType string, data []byte) string {
+	if mediaType, _, err := mime.ParseMediaType(contentType); err == nil && strings.HasPrefix(strings.ToLower(mediaType), "image/") {
+		return strings.ToLower(mediaType)
+	}
+	if detected := strings.ToLower(http.DetectContentType(data)); strings.HasPrefix(detected, "image/") {
+		return detected
+	}
+	if _, format, err := image.DecodeConfig(bytes.NewReader(data)); err == nil {
+		return galleryImageFormatMimeType(format)
+	}
+	return ""
+}
+
+func galleryImageSize(data []byte) (int, int) {
+	config, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return 0, 0
+	}
+	return config.Width, config.Height
+}
+
+func galleryImageFormatMimeType(format string) string {
+	switch strings.ToLower(format) {
+	case "jpg", "jpeg":
+		return "image/jpeg"
+	case "png":
+		return "image/png"
+	case "gif":
+		return "image/gif"
+	default:
+		return "image/" + strings.ToLower(format)
+	}
+}
+
+func isAllowedGalleryImageMimeType(mimeType string) bool {
+	switch strings.ToLower(strings.TrimSpace(mimeType)) {
+	case "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif":
+		return true
+	default:
+		return false
+	}
 }
 
 func isGPTImageModel(modelName string) bool {

@@ -27,6 +27,7 @@ type saveUserRequest struct {
 	Password    string           `json:"password"`
 	Email       string           `json:"email"`
 	DisplayName string           `json:"displayName"`
+	AvatarURL   string           `json:"avatarUrl"`
 	Role        model.UserRole   `json:"role"`
 	Status      model.UserStatus `json:"status"`
 }
@@ -142,6 +143,26 @@ func RedeemInviteCode(w http.ResponseWriter, r *http.Request) {
 	OK(w, result)
 }
 
+func SaveProfile(w http.ResponseWriter, r *http.Request) {
+	current, ok := service.UserFromContext(r.Context())
+	if !ok || current.Role == model.UserRoleGuest {
+		Fail(w, "未登录或权限不足")
+		return
+	}
+	var request saveUserRequest
+	_ = json.NewDecoder(r.Body).Decode(&request)
+	user, err := service.SaveProfile(current.ID, service.ProfileInput{
+		Username:    request.Username,
+		DisplayName: request.DisplayName,
+		AvatarURL:   request.AvatarURL,
+	})
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, user)
+}
+
 func AdminUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := service.ListUsers(parseQuery(r))
 	if err != nil {
@@ -159,6 +180,7 @@ func AdminSaveUser(w http.ResponseWriter, r *http.Request) {
 		Username:    request.Username,
 		Email:       request.Email,
 		DisplayName: request.DisplayName,
+		AvatarURL:   request.AvatarURL,
 		Role:        request.Role,
 		Status:      request.Status,
 	}, request.Password)

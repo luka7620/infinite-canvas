@@ -44,6 +44,12 @@ export type AuthPayload = {
     code?: string;
 };
 
+export type ProfilePayload = {
+    username: string;
+    displayName?: string;
+    avatarUrl?: string;
+};
+
 export async function login(payload: AuthPayload) {
     return apiPost<AuthSession>("/api/auth/login", payload);
 }
@@ -54,6 +60,10 @@ export async function register(payload: AuthPayload) {
 
 export async function fetchCurrentUser(token?: string) {
     return apiGet<AuthUser>("/api/auth/me", undefined, token);
+}
+
+export async function saveProfile(token: string, payload: ProfilePayload) {
+    return apiPost<AuthUser>("/api/auth/profile", payload, token);
 }
 
 export async function checkIn(token: string) {

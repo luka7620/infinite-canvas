@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/basketikun/infinite-canvas/model"
 	"github.com/basketikun/infinite-canvas/service"
@@ -68,6 +69,14 @@ func GalleryImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	OK(w, result)
+}
+
+func GalleryImageFile(w http.ResponseWriter, r *http.Request, id string) {
+	writeGalleryImageFile(w, id, false)
+}
+
+func AdminGalleryImageFile(w http.ResponseWriter, r *http.Request, id string) {
+	writeGalleryImageFile(w, id, true)
 }
 
 func ToggleGalleryLike(w http.ResponseWriter, r *http.Request, id string) {
@@ -146,4 +155,21 @@ func AdminDeleteGalleryImage(w http.ResponseWriter, r *http.Request, id string) 
 		return
 	}
 	OK(w, true)
+}
+
+func writeGalleryImageFile(w http.ResponseWriter, id string, admin bool) {
+	file, err := service.GetGalleryImageFile(id, admin)
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	contentType := file.MimeType
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(file.Data)))
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(file.Data)
 }

@@ -63,6 +63,7 @@ func DB() (*gorm.DB, error) {
 			&model.Asset{},
 			&model.GeneratedImageRecord{},
 			&model.GalleryImage{},
+			&model.GalleryImageFile{},
 			&model.GalleryLike{},
 			&model.GalleryComment{},
 			&model.Setting{},
