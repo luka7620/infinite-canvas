@@ -313,6 +313,10 @@ export type AdminCheckInSettings = {
     maxCredits: number;
 };
 
+export type AdminFeatureSettings = {
+    videoEnabled: boolean;
+};
+
 export type AdminPublicSettings = {
     modelChannel: AdminPublicModelChannelSettings;
     auth: {
@@ -323,6 +327,7 @@ export type AdminPublicSettings = {
         };
     };
     checkIn: AdminCheckInSettings;
+    features: AdminFeatureSettings;
 };
 
 export type AdminPrivateSettings = {

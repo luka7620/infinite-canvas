@@ -1,14 +1,16 @@
 "use client";
 
-import { ArrowRight, ImagePlus, Layers3, Library, Workflow } from "lucide-react";
+import { ArrowRight, ImagePlus, Layers3, Library, LockKeyhole, Workflow } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { App, Button, Empty, Image, Tag } from "antd";
 
-import { navigationTools } from "@/constant/navigation-tools";
+import { navigationTools, visibleNavigationTools } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
 import { fetchGalleryImages, type GalleryImage } from "@/services/api/gallery";
 import { fetchPrompts, type Prompt } from "@/services/api/prompts";
+import { useConfigStore } from "@/stores/use-config-store";
+import { useUserStore } from "@/stores/use-user-store";
 
 const workflow = [
     { label: "画布编排", value: "节点、连线、撤销重做", icon: Workflow },
@@ -18,7 +20,10 @@ const workflow = [
 
 export default function IndexPage() {
     const { message } = App.useApp();
-    const [primaryTool] = navigationTools;
+    const token = useUserStore((state) => state.token);
+    const videoEnabled = useConfigStore((state) => state.publicSettings?.features.videoEnabled === true);
+    const tools = visibleNavigationTools(videoEnabled);
+    const primaryTool = tools[0] || navigationTools[0];
     const [galleryShowcase, setGalleryShowcase] = useState<GalleryImage[]>([]);
     const [galleryReady, setGalleryReady] = useState(false);
     const [promptShowcase, setPromptShowcase] = useState<Prompt[]>([]);
@@ -27,6 +32,7 @@ export default function IndexPage() {
     const [previewIndex, setPreviewIndex] = useState(0);
     const [previewOpen, setPreviewOpen] = useState(false);
     const heroGallery = galleryShowcase.slice(0, 5);
+    const canViewGalleryImages = Boolean(token);
 
     useEffect(() => {
         setGalleryReady(false);
@@ -97,17 +103,30 @@ export default function IndexPage() {
                                         key={item.id}
                                         type="button"
                                         onClick={() => {
+                                            if (!canViewGalleryImages) {
+                                                window.location.href = "/login?redirect=%2Fgallery";
+                                                return;
+                                            }
                                             setGalleryPreviewIndex(index);
                                             setGalleryPreviewOpen(true);
                                         }}
                                         className={cn(
-                                            "group relative min-h-0 cursor-pointer overflow-hidden bg-muted text-left",
+                                            "group relative min-h-0 overflow-hidden bg-muted text-left",
+                                            canViewGalleryImages ? "cursor-pointer" : "cursor-default",
                                             index === 0 && "col-span-3 row-span-6",
                                             index === 1 && "col-span-3 row-span-3",
                                             index > 1 && "col-span-1 row-span-3",
                                         )}
                                     >
-                                        <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]" />
+                                        <img src={item.imageUrl} alt={item.title} className={cn("h-full w-full object-cover transition duration-300", canViewGalleryImages ? "group-hover:scale-[1.025]" : "scale-105 blur-xl")} />
+                                        {!canViewGalleryImages ? (
+                                            <div className="absolute inset-0 grid place-items-center bg-background/20 p-3">
+                                                <span className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm">
+                                                    <LockKeyhole className="size-3.5" />
+                                                    登录后查看
+                                                </span>
+                                            </div>
+                                        ) : null}
                                         <div className="absolute inset-x-0 bottom-0 bg-black/62 p-4 text-white">
                                             <div className="mb-2 flex flex-wrap gap-1.5">
                                                 {item.tags.slice(0, index === 0 ? 3 : 2).map((tag) => (
@@ -130,7 +149,7 @@ export default function IndexPage() {
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {navigationTools.map((tool) => {
+                        {tools.map((tool) => {
                             const Icon = tool.icon;
                             return (
                                 <Link key={tool.slug} href={`/${tool.slug}`} className="group flex min-h-20 items-center gap-3 rounded-lg border border-border bg-card p-4 transition hover:border-primary/40 hover:bg-secondary">
@@ -199,20 +218,22 @@ export default function IndexPage() {
                 </div>
             </Image.PreviewGroup>
 
-            <Image.PreviewGroup
-                preview={{
-                    open: galleryPreviewOpen,
-                    current: galleryPreviewIndex,
-                    onOpenChange: setGalleryPreviewOpen,
-                    onChange: setGalleryPreviewIndex,
-                }}
-            >
-                <div className="hidden">
-                    {galleryShowcase.map((item) => (
-                        <Image key={item.id} src={item.imageUrl} alt={item.title} />
-                    ))}
-                </div>
-            </Image.PreviewGroup>
+            {canViewGalleryImages ? (
+                <Image.PreviewGroup
+                    preview={{
+                        open: galleryPreviewOpen,
+                        current: galleryPreviewIndex,
+                        onOpenChange: setGalleryPreviewOpen,
+                        onChange: setGalleryPreviewIndex,
+                    }}
+                >
+                    <div className="hidden">
+                        {galleryShowcase.map((item) => (
+                            <Image key={item.id} src={item.imageUrl} alt={item.title} />
+                        ))}
+                    </div>
+                </Image.PreviewGroup>
+            ) : null}
         </main>
     );
 }

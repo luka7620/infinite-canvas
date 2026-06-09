@@ -65,6 +65,33 @@ const LOG_STORE_KEY = "infinite-canvas:video_generation_logs";
 const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
 
 export default function VideoPage() {
+    const publicSettings = useConfigStore((state) => state.publicSettings);
+    const isPublicSettingsLoading = useConfigStore((state) => state.isPublicSettingsLoading);
+    const videoEnabled = publicSettings?.features?.videoEnabled === true;
+    if (!videoEnabled) {
+        return <VideoDisabledPage loading={isPublicSettingsLoading || !publicSettings} />;
+    }
+    return <VideoWorkbench />;
+}
+
+function VideoDisabledPage({ loading }: { loading: boolean }) {
+    return (
+        <div className="grid h-full place-items-center bg-background px-4 text-foreground">
+            <div className="w-full max-w-md rounded-lg border border-border bg-card p-8 text-center">
+                {loading ? <LoaderCircle className="mx-auto mb-4 size-10 animate-spin text-muted-foreground" /> : <VideoIcon className="mx-auto mb-4 size-10 text-muted-foreground" />}
+                <Typography.Title level={3} className="!mb-2 !text-foreground">
+                    {loading ? "正在加载配置" : "视频创作台暂未开放"}
+                </Typography.Title>
+                <Typography.Paragraph className="!mb-6 !text-muted-foreground">{loading ? "请稍候，正在读取后台功能开关。" : "该功能当前已由管理员关闭，开启后会恢复显示。"}</Typography.Paragraph>
+                <Button type="primary" href="/">
+                    返回首页
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+function VideoWorkbench() {
     const { message } = App.useApp();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const config = useConfigStore((state) => state.config);

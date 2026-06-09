@@ -28,6 +28,9 @@ type GalleryImage struct {
 	ID               string        `json:"id" gorm:"primaryKey"`
 	GeneratedImageID string        `json:"generatedImageId" gorm:"uniqueIndex"`
 	UserID           string        `json:"userId" gorm:"index"`
+	Username         string        `json:"username" gorm:"-"`
+	DisplayName      string        `json:"displayName" gorm:"-"`
+	AvatarURL        string        `json:"avatarUrl" gorm:"-"`
 	Title            string        `json:"title"`
 	Description      string        `json:"description" gorm:"type:text"`
 	Tags             []string      `json:"tags" gorm:"serializer:json"`

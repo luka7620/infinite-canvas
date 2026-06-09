@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 
 import { UserStatusActions } from "@/components/layout/user-status-actions";
+import { VersionReleaseModal } from "@/components/layout/version-release-modal";
 import { adminLayoutStyle } from "@/lib/app-theme";
 import { useUserStore } from "@/stores/use-user-store";
 
@@ -93,6 +94,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         {pageTitle}
                     </Typography.Title>
                     <Flex align="center" gap={4}>
+                        <VersionReleaseModal className="inline-flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground" />
                         <UserStatusActions showConfig={false} />
                     </Flex>
                 </Layout.Header>

@@ -19,6 +19,9 @@ export type GalleryImage = {
     id: string;
     generatedImageId: string;
     userId: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string;
     title: string;
     description: string;
     tags: string[];

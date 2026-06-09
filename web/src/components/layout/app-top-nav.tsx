@@ -5,12 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
-import { navigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
+import { navigationTools, visibleNavigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
 import { AppConfigModal } from "@/components/layout/app-config-modal";
 import { GitHubLink } from "@/components/layout/github-link";
 import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
-import { VersionReleaseModal } from "@/components/layout/version-release-modal";
 import { useConfigStore } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -21,12 +20,14 @@ export function AppTopNav() {
     const pathname = usePathname();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
+    const videoEnabled = useConfigStore((state) => state.publicSettings?.features.videoEnabled === true);
     const theme = useThemeStore((state) => state.theme);
     const setTheme = useThemeStore((state) => state.setTheme);
     const user = useUserStore((state) => state.user);
     const isReady = useUserStore((state) => state.isReady);
     const hideHeader = /^\/canvas\/[^/]+/.test(pathname);
     const slug = pathname.split("/").filter(Boolean)[0];
+    const tools = visibleNavigationTools(videoEnabled);
     const activeToolSlug = navigationTools.some((tool) => tool.slug === slug) ? (slug as NavigationToolSlug) : undefined;
 
     return (
@@ -59,7 +60,7 @@ export function AppTopNav() {
                             </button>
 
                             <nav className="hide-scrollbar ml-7 hidden h-14 min-w-0 items-center gap-0.5 overflow-x-auto md:flex">
-                                {navigationTools.map((tool) => {
+                                {tools.map((tool) => {
                                     const Icon = tool.icon;
                                     const active = tool.slug === activeToolSlug;
                                     return (
@@ -102,7 +103,6 @@ export function AppTopNav() {
                                         aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
                                         title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
                                     />
-                                    <VersionReleaseModal />
                                     <GitHubLink />
                                     <Link href="/login" className="rounded-md px-3 py-1.5 text-sm font-medium text-primary underline-offset-4 transition hover:bg-secondary hover:text-foreground">
                                         登录
@@ -114,7 +114,7 @@ export function AppTopNav() {
                 </header>
             ) : null}
 
-            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={activeToolSlug} onClose={() => setMobileNavOpen(false)} />
+            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={activeToolSlug} tools={tools} onClose={() => setMobileNavOpen(false)} />
             <AppConfigModal />
         </>
     );

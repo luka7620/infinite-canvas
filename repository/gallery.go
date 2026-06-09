@@ -65,6 +65,10 @@ func ListGalleryImages(q model.Query, admin bool) ([]model.GalleryImage, int64, 
 		return items, total, err
 	}
 	items, err = fillGalleryCounts(db, items)
+	if err != nil {
+		return items, total, err
+	}
+	items, err = fillGalleryImageUsers(db, items)
 	return items, total, err
 }
 
@@ -201,7 +205,11 @@ func ToggleGalleryLike(galleryID string, userID string, now string) (model.Galle
 		return model.GalleryImage{}, false, err
 	}
 	item.Liked = liked
-	return item, liked, nil
+	items, err := fillGalleryImageUsers(db, []model.GalleryImage{item})
+	if err != nil {
+		return item, liked, err
+	}
+	return items[0], liked, nil
 }
 
 func ListGalleryComments(galleryID string, q model.Query) ([]model.GalleryComment, int64, error) {
@@ -217,6 +225,10 @@ func ListGalleryComments(galleryID string, q model.Query) ([]model.GalleryCommen
 	}
 	var items []model.GalleryComment
 	err = tx.Order("created_at desc").Offset(q.Offset()).Limit(q.PageSize).Find(&items).Error
+	if err != nil {
+		return items, total, err
+	}
+	items, err = fillGalleryCommentUsers(db, items)
 	return items, total, err
 }
 
@@ -330,6 +342,89 @@ func fillGalleryCounts(db *gorm.DB, items []model.GalleryImage) ([]model.Gallery
 		items[i].CommentCount = commentCounts[items[i].ID]
 	}
 	return items, nil
+}
+
+func fillGalleryImageUsers(db *gorm.DB, items []model.GalleryImage) ([]model.GalleryImage, error) {
+	if len(items) == 0 {
+		return items, nil
+	}
+	users, err := galleryUsersByID(db, galleryImageUserIDs(items))
+	if err != nil {
+		return items, err
+	}
+	for i := range items {
+		user := users[items[i].UserID]
+		items[i].Username = user.Username
+		items[i].DisplayName = user.DisplayName
+		items[i].AvatarURL = user.AvatarURL
+	}
+	return items, nil
+}
+
+func fillGalleryCommentUsers(db *gorm.DB, items []model.GalleryComment) ([]model.GalleryComment, error) {
+	if len(items) == 0 {
+		return items, nil
+	}
+	users, err := galleryUsersByID(db, galleryCommentUserIDs(items))
+	if err != nil {
+		return items, err
+	}
+	for i := range items {
+		if user, ok := users[items[i].UserID]; ok {
+			items[i].Username = firstNonEmptyString(user.Username, items[i].Username)
+			items[i].DisplayName = firstNonEmptyString(user.DisplayName, items[i].DisplayName)
+			items[i].AvatarURL = firstNonEmptyString(user.AvatarURL, items[i].AvatarURL)
+		}
+	}
+	return items, nil
+}
+
+func galleryUsersByID(db *gorm.DB, ids []string) (map[string]model.User, error) {
+	if len(ids) == 0 {
+		return map[string]model.User{}, nil
+	}
+	var users []model.User
+	if err := db.Select("id", "username", "display_name", "avatar_url").Where("id IN ?", ids).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	byID := make(map[string]model.User, len(users))
+	for _, user := range users {
+		byID[user.ID] = user
+	}
+	return byID, nil
+}
+
+func galleryImageUserIDs(items []model.GalleryImage) []string {
+	seen := map[string]bool{}
+	ids := []string{}
+	for _, item := range items {
+		if item.UserID != "" && !seen[item.UserID] {
+			seen[item.UserID] = true
+			ids = append(ids, item.UserID)
+		}
+	}
+	return ids
+}
+
+func galleryCommentUserIDs(items []model.GalleryComment) []string {
+	seen := map[string]bool{}
+	ids := []string{}
+	for _, item := range items {
+		if item.UserID != "" && !seen[item.UserID] {
+			seen[item.UserID] = true
+			ids = append(ids, item.UserID)
+		}
+	}
+	return ids
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func listGalleryLikeCounts(db *gorm.DB, ids []string) (map[string]int, error) {

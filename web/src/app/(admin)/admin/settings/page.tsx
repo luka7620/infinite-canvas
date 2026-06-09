@@ -38,6 +38,7 @@ const emptySettings: AdminSettings = {
         },
         auth: { allowRegister: true, registerCredits: 0, linuxDo: { enabled: false } },
         checkIn: { mode: "fixed", credits: 10, minCredits: 10, maxCredits: 10 },
+        features: { videoEnabled: true },
     },
     private: { channels: [], promptSync: { enabled: true, cron: "*/5 * * * *" }, auth: { linuxDo: { clientId: "", clientSecret: "" } } },
 };
@@ -444,6 +445,11 @@ export default function AdminSettingsPage() {
                                     <Col span={24}>
                                         <Form.Item name={["public", "modelChannel", "allowCustomChannel"]} label="是否允许用户自定义渠道" extra="开启后，前端可提供走后端渠道和用户自定义 baseUrl 直连两种模式" valuePropName="checked">
                                             <Switch />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={24} md={12}>
+                                        <Form.Item name={["public", "features", "videoEnabled"]} label="视频创作台" extra="关闭后，普通用户和游客暂时看不到视频创作台入口，直接访问页面也会提示暂未开放" valuePropName="checked">
+                                            <Switch checkedChildren="显示" unCheckedChildren="隐藏" />
                                         </Form.Item>
                                     </Col>
                                     <Col xs={24} md={12}>
@@ -885,6 +891,9 @@ function normalizePublicSetting(setting: Partial<AdminSettings["public"]> = {}):
             },
         },
         checkIn: normalizeCheckInSetting(setting.checkIn),
+        features: {
+            videoEnabled: setting.features?.videoEnabled !== false,
+        },
     };
 }
 

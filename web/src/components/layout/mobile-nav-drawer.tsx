@@ -6,17 +6,20 @@ import Link from "next/link";
 import { navigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
 
+type NavigationTool = (typeof navigationTools)[number];
+
 type MobileNavDrawerProps = {
     open: boolean;
     activeToolSlug?: NavigationToolSlug;
+    tools?: readonly NavigationTool[];
     onClose: () => void;
 };
 
-export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDrawerProps) {
+export function MobileNavDrawer({ open, activeToolSlug, tools = navigationTools, onClose }: MobileNavDrawerProps) {
     return (
         <Drawer title="导航" placement="left" size={280} open={open} onClose={onClose} className="md:hidden">
             <div className="space-y-1">
-                {navigationTools.map((tool) => {
+                {tools.map((tool) => {
                     const Icon = tool.icon;
                     const active = tool.slug === activeToolSlug;
                     return (

@@ -1,6 +1,7 @@
 "use client";
 
-import { Heart, MessageCircle, Search, SlidersHorizontal } from "lucide-react";
+import { Heart, LockKeyhole, MessageCircle, Search, SlidersHorizontal } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { App, Avatar, Button, Empty, Image, Input, Modal, Pagination, Tag } from "antd";
 
@@ -31,6 +32,7 @@ export default function GalleryPage() {
     const [likingIds, setLikingIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const hasMoreComments = comments.length < commentTotal;
+    const canViewGalleryImages = Boolean(token);
 
     useEffect(() => {
         setLoading(true);
@@ -187,16 +189,30 @@ export default function GalleryPage() {
 
                     <div className="min-w-0">
                         {items.length ? (
-                            <Image.PreviewGroup>
+                            <MaybeGalleryPreview enabled={canViewGalleryImages}>
                                 <div className="columns-1 gap-4 sm:columns-2 xl:columns-3 2xl:columns-4">
                                     {items.map((item) => {
                                         const promptText = item.showPrompt && item.prompt ? item.prompt : "";
                                         const promptExpanded = expandedPromptIds.includes(item.id);
                                         const shouldFoldPrompt = promptText.length > 120;
+                                        const uploaderName = galleryUserName(item);
 
                                         return (
                                             <article key={item.id} className="mb-4 break-inside-avoid overflow-hidden rounded-lg border border-border bg-card">
-                                                <Image src={item.imageUrl} alt={item.title} width="100%" style={{ display: "block" }} preview={{ mask: "放大" }} />
+                                                <div className="relative overflow-hidden bg-muted">
+                                                    {canViewGalleryImages ? (
+                                                        <Image src={item.imageUrl} alt={item.title} width="100%" style={{ display: "block" }} preview={{ mask: "放大" }} />
+                                                    ) : (
+                                                        <>
+                                                            <img src={item.imageUrl} alt="" aria-hidden="true" className="block h-auto w-full scale-105 blur-xl" />
+                                                            <div className="absolute inset-0 grid place-items-center bg-background/20 p-4">
+                                                                <Button type="primary" size="small" href="/login?redirect=%2Fgallery" icon={<LockKeyhole className="size-3.5" />}>
+                                                                    登录后查看
+                                                                </Button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
                                                 <div className="space-y-3 p-4">
                                                     <div>
                                                         <h2 className="line-clamp-1 text-base font-semibold text-foreground">{item.title}</h2>
@@ -211,7 +227,13 @@ export default function GalleryPage() {
                                                             ))}
                                                         </div>
                                                     ) : null}
-                                                    <div className="text-xs text-muted-foreground">{item.model}</div>
+                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                        <Avatar className="shrink-0" src={item.avatarUrl} size={22}>
+                                                            {galleryAvatarText(item)}
+                                                        </Avatar>
+                                                        <span className="min-w-0 flex-1 truncate">{uploaderName}</span>
+                                                        <span className="max-w-[45%] shrink-0 truncate text-right">{item.model}</span>
+                                                    </div>
                                                     <div className="flex items-center gap-2 border-t border-border pt-3">
                                                         <Button
                                                             size="small"
@@ -241,7 +263,7 @@ export default function GalleryPage() {
                                         );
                                     })}
                                 </div>
-                            </Image.PreviewGroup>
+                            </MaybeGalleryPreview>
                         ) : (
                             <div className="grid min-h-[520px] place-items-center rounded-lg border border-dashed border-border bg-card">
                                 <Empty description={loading ? "正在读取画廊" : "暂无公开作品"} />
@@ -280,11 +302,11 @@ export default function GalleryPage() {
                                 {comments.map((comment) => (
                                     <div key={comment.id} className="flex gap-3 p-3">
                                         <Avatar className="shrink-0" src={comment.avatarUrl} size={32}>
-                                            {(comment.displayName || comment.username || "用").slice(0, 1)}
+                                            {galleryAvatarText(comment)}
                                         </Avatar>
                                         <div className="min-w-0 flex-1">
                                             <div className="flex min-w-0 items-baseline justify-between gap-3">
-                                                <span className="truncate text-sm font-medium text-foreground">{comment.displayName || comment.username || "用户"}</span>
+                                                <span className="truncate text-sm font-medium text-foreground">{galleryUserName(comment)}</span>
                                                 <time className="shrink-0 text-xs text-muted-foreground" dateTime={comment.createdAt}>
                                                     {formatGalleryDate(comment.createdAt)}
                                                 </time>
@@ -317,4 +339,16 @@ function formatGalleryDate(value: string) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value || "-";
     return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function MaybeGalleryPreview({ enabled, children }: { enabled: boolean; children: ReactNode }) {
+    return enabled ? <Image.PreviewGroup>{children}</Image.PreviewGroup> : <>{children}</>;
+}
+
+function galleryUserName(user: Pick<GalleryImage | GalleryComment, "username" | "displayName">) {
+    return user.username || user.displayName || "用户";
+}
+
+function galleryAvatarText(user: Pick<GalleryImage | GalleryComment, "username" | "displayName">) {
+    return galleryUserName(user).slice(0, 1);
 }

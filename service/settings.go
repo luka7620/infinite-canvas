@@ -86,6 +86,10 @@ func normalizePublicSetting(setting model.PublicSetting) model.PublicSetting {
 		setting.Auth.RegisterCredits = 0
 	}
 	setting.CheckIn = normalizeCheckInRewardSetting(setting.CheckIn)
+	if setting.Features.VideoEnabled == nil {
+		enabled := true
+		setting.Features.VideoEnabled = &enabled
+	}
 	return setting
 }
 

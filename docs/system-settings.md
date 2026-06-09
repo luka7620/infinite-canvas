@@ -54,6 +54,9 @@
     "credits": 10,
     "minCredits": 10,
     "maxCredits": 10
+  },
+  "features": {
+    "videoEnabled": true
   }
 }
 ```
@@ -63,6 +66,7 @@
 | `modelChannel` | object | 模型渠道公开配置组 |
 | `auth` | object | 认证相关公开配置 |
 | `checkIn` | object | 每日签到奖励配置 |
+| `features` | object | 前台功能开关公开配置 |
 
 `modelChannel` 字段：
 
@@ -106,6 +110,11 @@
 | `allowRegister` | boolean | 是否允许账号密码公开注册，默认允许；关闭后仍可通过有效注册邀请码创建账号 |
 | `registerCredits` | number | 新注册用户获得的固定初始算力点，默认 0 |
 | `linuxDo.enabled` | boolean | 是否开启 Linux.do 登录；已绑定账号可直接登录，Linux.do 首次创建账号时必须填写有效注册邀请码并消耗该邀请码 |
+
+`features` 字段：
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `videoEnabled` | boolean | 是否显示视频创作台入口和页面，默认开启 |
 
 ## private.value
 

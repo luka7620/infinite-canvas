@@ -34,3 +34,7 @@ export const navigationTools = [
 ] as const;
 
 export type NavigationToolSlug = (typeof navigationTools)[number]["slug"];
+
+export function visibleNavigationTools(videoEnabled: boolean) {
+    return navigationTools.filter((tool) => videoEnabled || tool.slug !== "video");
+}

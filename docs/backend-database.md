@@ -205,6 +205,7 @@
 | `modelChannel` | object | 模型渠道公开配置组 |
 | `auth` | object | 公开登录配置 |
 | `checkIn` | object | 每日签到奖励配置 |
+| `features` | object | 前台功能开关公开配置 |
 
 `modelChannel` 当前字段：
 
@@ -242,6 +243,11 @@
 | `allowRegister` | bool | 是否允许账号密码公开注册，默认允许；关闭后仍可通过有效注册邀请码创建账号 |
 | `registerCredits` | number | 新注册用户获得的固定初始算力点，默认 0 |
 | `linuxDo.enabled` | bool | 是否开启 Linux.do 登录 |
+
+`features` 当前字段：
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `videoEnabled` | bool | 是否显示视频创作台入口和页面，默认开启 |
 
 `private.value` 当前字段：
 

@@ -34,6 +34,10 @@ type CheckInRewardSetting struct {
 	MaxCredits int    `json:"maxCredits"`
 }
 
+type PublicFeatureSetting struct {
+	VideoEnabled *bool `json:"videoEnabled"`
+}
+
 // PublicModelChannelSetting 公开模型渠道配置。
 type PublicModelChannelSetting struct {
 	AvailableModels    []string    `json:"availableModels"`
@@ -51,6 +55,7 @@ type PublicSetting struct {
 	ModelChannel PublicModelChannelSetting `json:"modelChannel"`
 	Auth         PublicAuthSetting         `json:"auth"`
 	CheckIn      CheckInRewardSetting      `json:"checkIn"`
+	Features     PublicFeatureSetting      `json:"features"`
 }
 
 type PublicAuthSetting struct {
