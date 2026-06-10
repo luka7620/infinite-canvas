@@ -23,6 +23,8 @@ export type CanvasProject = {
 type CanvasStore = {
     hydrated: boolean;
     projects: CanvasProject[];
+    generationRunning: boolean;
+    setGenerationRunning: (running: boolean) => void;
     createProject: (title?: string) => string;
     importProject: (project: Partial<CanvasProject>) => string;
     openProject: (id: string) => CanvasProject | null;
@@ -63,6 +65,8 @@ export const useCanvasStore = create<CanvasStore>()(
         (set, get) => ({
             hydrated: false,
             projects: [],
+            generationRunning: false,
+            setGenerationRunning: (running) => set({ generationRunning: running }),
             createProject: (title = "未命名画布") => {
                 const now = new Date().toISOString();
                 const id = nanoid();

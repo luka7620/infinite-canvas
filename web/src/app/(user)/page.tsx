@@ -8,6 +8,7 @@ import { App, Button, Empty, Image, Tag } from "antd";
 import { navigationTools, visibleNavigationTools } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
 import { fetchGalleryImages, type GalleryImage } from "@/services/api/gallery";
+import { galleryListCacheKey, hydrateGalleryListImages, readCachedGalleryList, saveCachedGalleryList } from "@/services/gallery-cache";
 import { fetchPrompts, type Prompt } from "@/services/api/prompts";
 import { useConfigStore } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -35,11 +36,28 @@ export default function IndexPage() {
     const canViewGalleryImages = Boolean(token);
 
     useEffect(() => {
+        let active = true;
+        const query = { pageSize: 12, sort: "time" as const };
+        const cacheKey = galleryListCacheKey("home", query);
         setGalleryReady(false);
-        void fetchGalleryImages({ pageSize: 12 })
-            .then((data) => setGalleryShowcase(data.items))
+        void (async () => {
+            const cached = await readCachedGalleryList(cacheKey);
+            if (cached) {
+                if (active) setGalleryShowcase(cached.items);
+                return;
+            }
+            const data = await fetchGalleryImages(query);
+            await saveCachedGalleryList(cacheKey, data);
+            const hydrated = await hydrateGalleryListImages(data);
+            if (active) setGalleryShowcase(hydrated.items);
+        })()
             .catch((error) => message.error(error instanceof Error ? error.message : "读取画廊失败"))
-            .finally(() => setGalleryReady(true));
+            .finally(() => {
+                if (active) setGalleryReady(true);
+            });
+        return () => {
+            active = false;
+        };
     }, [message]);
 
     useEffect(() => {
@@ -57,7 +75,7 @@ export default function IndexPage() {
                             <Layers3 className="size-4" />
                             开源图片创作工作台
                         </div>
-                        <h1 className="max-w-3xl text-balance text-5xl font-semibold leading-[1.02] tracking-normal text-foreground sm:text-6xl">LukaLeng生图公益</h1>
+                        <h1 className="max-w-3xl text-balance text-5xl font-semibold leading-[1.02] tracking-normal text-foreground sm:text-6xl">LukaLeng生图站</h1>
                         <p className="mt-6 max-w-2xl text-pretty text-base leading-8 text-muted-foreground sm:text-lg">
                             在一个桌面工作区里整理提示词、连接参考图、批量生成图片，并把稳定结果沉淀到素材和画廊。
                         </p>

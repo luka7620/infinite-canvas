@@ -46,7 +46,7 @@ export function AppTopNav() {
                                         }}
                                     />
                                 </span>
-                                <span className="text-base font-semibold">LukaLeng公益站</span>
+                                <span className="text-base font-semibold">LukaLeng生图站</span>
                             </Link>
 
                             <button

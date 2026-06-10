@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"image"
 	_ "image/gif"
@@ -92,6 +93,24 @@ func ListMyGeneratedImageRecords(userID string, q model.Query) (model.GeneratedI
 		return model.GeneratedImageRecordList{}, err
 	}
 	return model.GeneratedImageRecordList{Items: items, Total: int(total)}, nil
+}
+
+func GetGeneratedImageFile(id string, user model.AuthUser) ([]byte, string, error) {
+	record, ok, err := repository.GetGeneratedImageRecordByID(strings.TrimSpace(id))
+	if err != nil || !ok {
+		if err != nil {
+			return nil, "", err
+		}
+		return nil, "", safeMessageError{message: "生成图片记录不存在"}
+	}
+	if record.UserID != user.ID {
+		return nil, "", safeMessageError{message: "只能读取自己的生成图片"}
+	}
+	downloaded, err := readGeneratedImageFile(record.ImageURL)
+	if err != nil {
+		return nil, "", err
+	}
+	return downloaded.Data, downloaded.MimeType, nil
 }
 
 func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (model.GalleryImage, error) {
@@ -395,6 +414,35 @@ func isCloudImageURL(value string) bool {
 
 func galleryImageURL(id string) string {
 	return "/api/gallery/" + url.PathEscape(id) + "/image"
+}
+
+func readGeneratedImageFile(imageURL string) (downloadedGalleryImage, error) {
+	imageURL = strings.TrimSpace(imageURL)
+	if strings.HasPrefix(imageURL, "data:") {
+		return decodeGeneratedImageDataURL(imageURL)
+	}
+	return downloadGalleryImage(imageURL)
+}
+
+func decodeGeneratedImageDataURL(value string) (downloadedGalleryImage, error) {
+	header, content, ok := strings.Cut(value, ",")
+	if !ok || !strings.Contains(header, ";base64") {
+		return downloadedGalleryImage{}, safeMessageError{message: "生成图片读取失败"}
+	}
+	data, err := base64.StdEncoding.DecodeString(content)
+	if err != nil {
+		return downloadedGalleryImage{}, safeMessageError{message: "生成图片读取失败"}
+	}
+	if int64(len(data)) > maxGalleryImageFileBytes {
+		return downloadedGalleryImage{}, safeMessageError{message: "生成图片不能超过 32MB"}
+	}
+	mimeType := strings.TrimPrefix(strings.Split(header, ";")[0], "data:")
+	mimeType = galleryImageMimeType(mimeType, data)
+	if len(data) == 0 || !isAllowedGalleryImageMimeType(mimeType) {
+		return downloadedGalleryImage{}, safeMessageError{message: "生成图片文件无效"}
+	}
+	width, height := galleryImageSize(data)
+	return downloadedGalleryImage{Data: data, MimeType: mimeType, Width: width, Height: height}, nil
 }
 
 func downloadGalleryImage(imageURL string) (downloadedGalleryImage, error) {

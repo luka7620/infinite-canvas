@@ -164,7 +164,7 @@ function withSystemMessage(config: AiConfig, messages: ChatCompletionMessage[]) 
     return systemPrompt ? [{ role: "system" as const, content: systemPrompt }, ...messages] : messages;
 }
 
-export async function requestGeneration(config: AiConfig, prompt: string, source: ImageGenerationSource = "image-page") {
+export async function requestGeneration(config: AiConfig, prompt: string, source: ImageGenerationSource = "image-page", signal?: AbortSignal) {
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const quality = normalizeQuality(config.quality);
     const requestSize = resolveRequestSize(quality, config.size);
@@ -182,6 +182,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, source
             },
             {
                 headers: aiHeaders(config, "application/json"),
+                signal,
             },
         );
         const images = parseImagePayload(response.data);
@@ -192,7 +193,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, source
     }
 }
 
-export async function requestEdit(config: AiConfig, prompt: string, references: ReferenceImage[], source: ImageGenerationSource = "image-page") {
+export async function requestEdit(config: AiConfig, prompt: string, references: ReferenceImage[], source: ImageGenerationSource = "image-page", signal?: AbortSignal) {
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const quality = normalizeQuality(config.quality);
     const requestSize = resolveRequestSize(quality, config.size);
@@ -212,7 +213,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     files.forEach((file) => formData.append("image", file));
 
     try {
-        const response = await axios.post<ImageApiResponse>(aiApiUrl(config, "/images/edits"), formData, { headers: aiHeaders(config) });
+        const response = await axios.post<ImageApiResponse>(aiApiUrl(config, "/images/edits"), formData, { headers: aiHeaders(config), signal });
         const images = parseImagePayload(response.data);
         refreshRemoteUser(config);
         return images;
@@ -221,7 +222,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     }
 }
 
-export async function requestImageQuestion(config: AiConfig, messages: ChatCompletionMessage[], onDelta: (text: string) => void) {
+export async function requestImageQuestion(config: AiConfig, messages: ChatCompletionMessage[], onDelta: (text: string) => void, signal?: AbortSignal) {
     let buffer = "";
     let answer = "";
     let processedLength = 0;
@@ -239,6 +240,7 @@ export async function requestImageQuestion(config: AiConfig, messages: ChatCompl
                     ...aiHeaders(config, "application/json"),
                 } as Record<string, string>,
                 responseType: "text",
+                signal,
                 onDownloadProgress: (event) => {
                     const responseText = String(event.event?.target?.responseText || "");
                     const nextText = responseText.slice(processedLength);

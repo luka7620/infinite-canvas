@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { App, Button } from "antd";
+import { App, Button, Modal } from "antd";
 import { Download, FileUp, Plus } from "lucide-react";
 
 import { readZip } from "@/lib/zip";
@@ -25,11 +25,23 @@ export default function CanvasPage() {
     const importProject = useCanvasStore((state) => state.importProject);
     const selectedIds = useCanvasUiStore((state) => state.selectedProjectIds);
     const setDeleteIds = useCanvasUiStore((state) => state.setDeleteProjectIds);
+    const generationRunning = useCanvasStore((state) => state.generationRunning);
+    const [newConfirmOpen, setNewConfirmOpen] = useState(false);
 
     const enterProject = (id: string) => {
         router.push(`/canvas/${id}`);
     };
-    const createAndEnter = () => enterProject(createProject(`LukaLeng公益站 ${projects.length + 1}`));
+    const doCreateAndEnter = () => {
+        setNewConfirmOpen(false);
+        enterProject(createProject(`LukaLeng生图站 ${projects.length + 1}`));
+    };
+    const createAndEnter = () => {
+        if (generationRunning) {
+            setNewConfirmOpen(true);
+            return;
+        }
+        doCreateAndEnter();
+    };
     const importCanvas = async (file?: File) => {
         if (!file) return;
         try {
@@ -62,12 +74,12 @@ export default function CanvasPage() {
                 <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
                     <div>
                         <p className="text-sm text-muted-foreground">本地画布库</p>
-                        <h1 className="mt-2 text-3xl font-semibold tracking-normal">LukaLeng公益站</h1>
+                        <h1 className="mt-2 text-3xl font-semibold tracking-normal">LukaLeng生图站</h1>
                     </div>
                     <div className="flex items-center gap-2">
                         {selectedIds.length ? (
                             <>
-                                <Button disabled={!hydrated} icon={<Download className="size-4" />} onClick={() => void exportCanvasProjects(projects.filter((project) => selectedIds.includes(project.id)), `LukaLeng公益站-${selectedIds.length}个项目`)}>
+                                <Button disabled={!hydrated} icon={<Download className="size-4" />} onClick={() => void exportCanvasProjects(projects.filter((project) => selectedIds.includes(project.id)), `LukaLeng生图站-${selectedIds.length}个项目`)}>
                                     导出选中
                                 </Button>
                                 <Button disabled={!hydrated} onClick={() => setDeleteIds(selectedIds)}>
@@ -110,6 +122,22 @@ export default function CanvasPage() {
 
             <input ref={inputRef} type="file" accept="application/zip,.zip" className="hidden" onChange={(event) => void importCanvas(event.target.files?.[0])} />
             <CanvasDeleteProjectsDialog />
+            <Modal
+                title="正在生成中"
+                open={newConfirmOpen}
+                centered
+                onCancel={() => setNewConfirmOpen(false)}
+                footer={
+                    <>
+                        <Button onClick={() => setNewConfirmOpen(false)}>取消</Button>
+                        <Button danger type="primary" onClick={doCreateAndEnter}>
+                            放弃生成并新建
+                        </Button>
+                    </>
+                }
+            >
+                <p className="text-sm opacity-60">当前有画布正在进行图片生成，新建画布会放弃该生成任务。</p>
+            </Modal>
         </main>
     );
 }

@@ -7,8 +7,8 @@ import "./globals.css";
 import React from "react";
 
 export const metadata: Metadata = {
-    title: "LukaLeng公益站",
-    description: "一个 LukaLeng公益站创作工具",
+    title: "LukaLeng生图站",
+    description: "一个 LukaLeng生图站创作工具",
 };
 
 export default function RootLayout({

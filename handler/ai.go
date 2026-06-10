@@ -126,7 +126,7 @@ func copyAIImageResponse(w http.ResponseWriter, request *http.Request, onFailure
 		if onFailure != nil {
 			onFailure()
 		}
-		Fail(w, "AI 接口请求失败")
+		Fail(w, "上游连接失败，请稍后重试")
 		return
 	}
 	defer response.Body.Close()
@@ -137,7 +137,7 @@ func copyAIImageResponse(w http.ResponseWriter, request *http.Request, onFailure
 		if onFailure != nil {
 			onFailure()
 		}
-		Fail(w, "AI 接口请求失败")
+		Fail(w, aiUpstreamErrorMessage(payload, response.StatusCode))
 		return
 	}
 
@@ -162,7 +162,7 @@ func copyAIResponse(w http.ResponseWriter, request *http.Request, onFailure func
 		if onFailure != nil {
 			onFailure()
 		}
-		Fail(w, "AI 接口请求失败")
+		Fail(w, "上游连接失败，请稍后重试")
 		return
 	}
 	defer response.Body.Close()
@@ -173,7 +173,7 @@ func copyAIResponse(w http.ResponseWriter, request *http.Request, onFailure func
 		if onFailure != nil {
 			onFailure()
 		}
-		Fail(w, "AI 接口请求失败")
+		Fail(w, aiUpstreamErrorMessage(payload, response.StatusCode))
 		return
 	}
 
@@ -187,6 +187,44 @@ func copyAIResponse(w http.ResponseWriter, request *http.Request, onFailure func
 	}
 	w.WriteHeader(response.StatusCode)
 	_, _ = io.Copy(w, response.Body)
+}
+
+func aiUpstreamErrorMessage(payload []byte, statusCode int) string {
+	var data map[string]any
+	if err := json.Unmarshal(payload, &data); err == nil {
+		if msg := jsonString(data["msg"]); msg != "" {
+			return msg
+		}
+		if msg := jsonString(data["message"]); msg != "" {
+			return msg
+		}
+		if msg := jsonString(data["error"]); msg != "" {
+			return msg
+		}
+		if errData, ok := data["error"].(map[string]any); ok {
+			if msg := jsonString(errData["message"]); msg != "" {
+				return msg
+			}
+		}
+	}
+	if statusCode == http.StatusTooManyRequests {
+		return "上游限流或额度不足，请稍后重试或检查号池状态"
+	}
+	if statusCode == 524 {
+		return "上游请求超时（524），请稍后重试或减少并发"
+	}
+	if statusCode >= http.StatusInternalServerError {
+		return fmt.Sprintf("上游服务错误（HTTP %d）", statusCode)
+	}
+	return "AI 接口请求失败"
+}
+
+func jsonString(value any) string {
+	text, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(text)
 }
 
 func readAIRequest(r *http.Request) ([]byte, string, string, error) {

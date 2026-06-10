@@ -39,6 +39,27 @@ func MyGeneratedImages(w http.ResponseWriter, r *http.Request) {
 	OK(w, result)
 }
 
+func GeneratedImageFile(w http.ResponseWriter, r *http.Request, id string) {
+	user, ok := service.UserFromContext(r.Context())
+	if !ok || user.Role == model.UserRoleGuest {
+		Fail(w, "未登录或权限不足")
+		return
+	}
+	data, contentType, err := service.GetGeneratedImageFile(id, user)
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	w.Header().Set("Cache-Control", "private, max-age=3600")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
+
 func PublishGalleryImage(w http.ResponseWriter, r *http.Request) {
 	user, ok := service.UserFromContext(r.Context())
 	if !ok || user.Role == model.UserRoleGuest {
@@ -169,7 +190,11 @@ func writeGalleryImageFile(w http.ResponseWriter, id string, admin bool) {
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(file.Data)))
-	w.Header().Set("Cache-Control", "no-store")
+	if admin {
+		w.Header().Set("Cache-Control", "private, max-age=3600")
+	} else {
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(file.Data)
 }

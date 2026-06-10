@@ -22,7 +22,7 @@ function refreshRemoteUser(config: AiConfig) {
     if (config.channelMode === "remote") void useUserStore.getState().hydrateUser();
 }
 
-export async function requestVideoGeneration(config: AiConfig, prompt: string, references: ReferenceImage[] = []) {
+export async function requestVideoGeneration(config: AiConfig, prompt: string, references: ReferenceImage[] = [], signal?: AbortSignal) {
     const model = config.model || config.videoModel;
     const body = new FormData();
     body.append("model", model);
@@ -34,15 +34,16 @@ export async function requestVideoGeneration(config: AiConfig, prompt: string, r
     const files = await Promise.all(references.slice(0, 7).map(async (image) => dataUrlToFile({ ...image, dataUrl: await imageToDataUrl(image) })));
     files.forEach((file) => body.append("input_reference[]", file));
     try {
-        const created = unwrapVideoResponse((await axios.post<ApiVideoResponse>(aiApiUrl(config, "/videos"), body, { headers: aiHeaders(config) })).data);
+        const created = unwrapVideoResponse((await axios.post<ApiVideoResponse>(aiApiUrl(config, "/videos"), body, { headers: aiHeaders(config), signal })).data);
         if (!created.id) throw new Error("视频接口没有返回任务 ID");
         for (;;) {
-            const video = unwrapVideoResponse((await axios.get<ApiVideoResponse>(aiApiUrl(config, `/videos/${created.id}`), { headers: aiHeaders(config), params: config.channelMode === "remote" ? { model } : undefined })).data);
+            if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+            const video = unwrapVideoResponse((await axios.get<ApiVideoResponse>(aiApiUrl(config, `/videos/${created.id}`), { headers: aiHeaders(config), params: config.channelMode === "remote" ? { model } : undefined, signal })).data);
             if (video.status === "completed") break;
             if (video.status === "failed" || video.status === "cancelled") throw new Error(video.error?.message || "视频生成失败");
             await new Promise((resolve) => setTimeout(resolve, 2500));
         }
-        const content = await axios.get<Blob>(aiApiUrl(config, `/videos/${created.id}/content`), { headers: aiHeaders(config), params: config.channelMode === "remote" ? { model } : undefined, responseType: "blob" });
+        const content = await axios.get<Blob>(aiApiUrl(config, `/videos/${created.id}/content`), { headers: aiHeaders(config), params: config.channelMode === "remote" ? { model } : undefined, responseType: "blob", signal });
         await assertVideoBlob(content.data);
         refreshRemoteUser(config);
         return content.data;

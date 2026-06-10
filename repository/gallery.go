@@ -60,7 +60,7 @@ func ListGalleryImages(q model.Query, admin bool) ([]model.GalleryImage, int64, 
 		return nil, 0, err
 	}
 	var items []model.GalleryImage
-	err = tx.Order("recommended desc, created_at desc").Offset(q.Offset()).Limit(q.PageSize).Find(&items).Error
+	err = tx.Order(galleryImageOrder(q.Sort)).Offset(q.Offset()).Limit(q.PageSize).Find(&items).Error
 	if err != nil {
 		return items, total, err
 	}
@@ -346,6 +346,15 @@ func isGalleryStatusOption(value string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func galleryImageOrder(sort string) string {
+	switch sort {
+	case "likes":
+		return "recommended desc, like_count desc, created_at desc"
+	default:
+		return "recommended desc, created_at desc"
 	}
 }
 

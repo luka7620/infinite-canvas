@@ -1,25 +1,34 @@
 "use client";
 
-import { Heart, LockKeyhole, MessageCircle, Search, SlidersHorizontal } from "lucide-react";
+import { Clock, Heart, LockKeyhole, MessageCircle, Search, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import { App, Avatar, Button, Empty, Image, Input, Modal, Pagination, Tag } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { App, Avatar, Button, Empty, Image, Input, Modal, Pagination, Segmented, Tag } from "antd";
 
-import { createGalleryComment, fetchGalleryComments, fetchGalleryImages, toggleGalleryLike, type GalleryComment, type GalleryImage } from "@/services/api/gallery";
+import { createGalleryComment, fetchGalleryComments, fetchGalleryImages, toggleGalleryLike, type GalleryComment, type GalleryImage, type GalleryQuery } from "@/services/api/gallery";
+import { galleryListCacheKey, hydrateGalleryListImages, readCachedGalleryList, saveCachedGalleryList } from "@/services/gallery-cache";
 import { useUserStore } from "@/stores/use-user-store";
 
 const pageSize = 24;
 const commentPageSize = 20;
+type GallerySort = NonNullable<GalleryQuery["sort"]>;
+
+const gallerySortOptions: { label: ReactNode; value: GallerySort }[] = [
+    { value: "time", label: <GallerySortLabel icon={<Clock className="size-3.5" />} text={"\u6700\u65b0"} /> },
+    { value: "likes", label: <GallerySortLabel icon={<Heart className="size-3.5" />} text={"\u70b9\u8d5e"} /> },
+];
 
 export default function GalleryPage() {
     const { message } = App.useApp();
     const token = useUserStore((state) => state.token);
+    const user = useUserStore((state) => state.user);
     const [items, setItems] = useState<GalleryImage[]>([]);
     const [tags, setTags] = useState<string[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [keyword, setKeyword] = useState("");
     const [keywordText, setKeywordText] = useState("");
+    const [sort, setSort] = useState<GallerySort>("time");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [expandedPromptIds, setExpandedPromptIds] = useState<string[]>([]);
     const [commentImage, setCommentImage] = useState<GalleryImage | null>(null);
@@ -33,18 +42,40 @@ export default function GalleryPage() {
     const [loading, setLoading] = useState(false);
     const hasMoreComments = comments.length < commentTotal;
     const canViewGalleryImages = Boolean(token);
+    const query = useMemo<GalleryQuery>(() => ({ keyword, tag: selectedTags, page, pageSize, sort }), [keyword, page, selectedTags, sort]);
+    const cacheScope = user?.id ? `user:${user.id}` : token ? "" : "guest";
+    const cacheKey = useMemo(() => (cacheScope ? galleryListCacheKey(cacheScope, query) : ""), [cacheScope, query]);
 
     useEffect(() => {
+        let active = true;
         setLoading(true);
-        void fetchGalleryImages({ keyword, tag: selectedTags, page, pageSize }, token)
-            .then((data) => {
-                setItems(data.items);
-                setTags(data.tags);
-                setTotal(data.total);
-            })
+        void (async () => {
+            const cached = cacheKey ? await readCachedGalleryList(cacheKey) : null;
+            if (cached) {
+                if (active) {
+                    setItems(cached.items);
+                    setTags(cached.tags);
+                    setTotal(cached.total);
+                }
+                return;
+            }
+            const data = await fetchGalleryImages(query, token);
+            if (cacheKey) await saveCachedGalleryList(cacheKey, data);
+            const hydrated = await hydrateGalleryListImages(data);
+            if (active) {
+                setItems(hydrated.items);
+                setTags(hydrated.tags);
+                setTotal(hydrated.total);
+            }
+        })()
             .catch((error) => message.error(error instanceof Error ? error.message : "读取画廊失败"))
-            .finally(() => setLoading(false));
-    }, [keyword, message, page, selectedTags, token]);
+            .finally(() => {
+                if (active) setLoading(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [cacheKey, message, query, token]);
 
     const toggleTag = (tag: string) => {
         setPage(1);
@@ -56,8 +87,13 @@ export default function GalleryPage() {
     };
 
     const updateImage = (image: Partial<GalleryImage> & { id: string }) => {
-        setItems((value) => value.map((item) => (item.id === image.id ? { ...item, ...image } : item)));
-        setCommentImage((value) => (value?.id === image.id ? { ...value, ...image } : value));
+        setItems((value) => {
+            const next = value.map((item) => (item.id === image.id ? mergeGalleryImage(item, image) : item));
+            if (sort === "likes") next.sort(compareGalleryLikes);
+            if (cacheKey) void saveCachedGalleryList(cacheKey, { items: next, tags, total });
+            return next;
+        });
+        setCommentImage((value) => (value?.id === image.id ? mergeGalleryImage(value, image) : value));
     };
 
     const likeImage = async (item: GalleryImage) => {
@@ -164,6 +200,18 @@ export default function GalleryPage() {
                                     setKeyword(value);
                                 }}
                             />
+                            <div className="mt-5">
+                                <div className="mb-2 text-xs font-medium text-muted-foreground">排序</div>
+                                <Segmented<GallerySort>
+                                    block
+                                    value={sort}
+                                    options={gallerySortOptions}
+                                    onChange={(value) => {
+                                        setPage(1);
+                                        setSort(value);
+                                    }}
+                                />
+                            </div>
                             {tags.length ? (
                                 <div className="mt-5 flex flex-wrap gap-2">
                                     {tags.map((tag) => {
@@ -339,6 +387,25 @@ function formatGalleryDate(value: string) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value || "-";
     return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function GallerySortLabel({ icon, text }: { icon: ReactNode; text: string }) {
+    return (
+        <span className="inline-flex items-center justify-center gap-1.5">
+            {icon}
+            {text}
+        </span>
+    );
+}
+
+function mergeGalleryImage(item: GalleryImage, patch: Partial<GalleryImage>) {
+    return { ...item, ...patch, imageUrl: item.imageUrl.startsWith("blob:") ? item.imageUrl : patch.imageUrl || item.imageUrl };
+}
+
+function compareGalleryLikes(a: GalleryImage, b: GalleryImage) {
+    if (a.recommended !== b.recommended) return Number(b.recommended) - Number(a.recommended);
+    if ((a.likeCount || 0) !== (b.likeCount || 0)) return (b.likeCount || 0) - (a.likeCount || 0);
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 }
 
 function MaybeGalleryPreview({ enabled, children }: { enabled: boolean; children: ReactNode }) {

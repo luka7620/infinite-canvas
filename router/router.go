@@ -46,6 +46,9 @@ func New() *gin.Engine {
 		handler.GalleryComments(c.Writer, c.Request, c.Param("id"))
 	})
 	api.GET("/generated-images", middleware.UserAuth, gin.WrapF(handler.MyGeneratedImages))
+	api.GET("/generated-images/:id/image", middleware.UserAuth, func(c *gin.Context) {
+		handler.GeneratedImageFile(c.Writer, c.Request, c.Param("id"))
+	})
 	api.POST("/gallery", middleware.UserAuth, gin.WrapF(handler.PublishGalleryImage))
 	api.POST("/gallery/:id/like", middleware.UserAuth, func(c *gin.Context) {
 		handler.ToggleGalleryLike(c.Writer, c.Request, c.Param("id"))

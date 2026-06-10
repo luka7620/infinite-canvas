@@ -58,6 +58,7 @@ export type GalleryComment = {
 export type GalleryQuery = {
     keyword?: string;
     type?: string;
+    sort?: "time" | "likes";
     tag?: string[];
     page?: number;
     pageSize?: number;
@@ -98,6 +99,24 @@ export async function fetchGalleryImages(query: GalleryQuery = {}, token?: strin
 
 export async function fetchGeneratedImages(token: string, query: GalleryQuery = {}) {
     return apiGet<GeneratedImageRecordListResponse>("/api/generated-images", compactApiParams(query), token);
+}
+
+export async function fetchGeneratedImageBlob(token: string, id: string) {
+    const response = await fetch(`/api/generated-images/${encodeURIComponent(id)}/image`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    const contentType = response.headers.get("Content-Type") || "";
+    if (!response.ok || contentType.includes("application/json")) {
+        let message = "读取生成图片失败";
+        try {
+            const payload = (await response.json()) as { msg?: string };
+            if (payload.msg) message = payload.msg;
+        } catch {
+            // ignore non-json image proxy errors
+        }
+        throw new Error(message);
+    }
+    return response.blob();
 }
 
 export async function publishGalleryImage(token: string, payload: PublishGalleryImagePayload) {
