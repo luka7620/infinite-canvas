@@ -9,6 +9,7 @@ import axios from "axios";
 
 import { requestEdit, requestGeneration, requestImageQuestion } from "@/services/api/image";
 import { publishGalleryImage } from "@/services/api/gallery";
+import { clearCachedGalleryLists } from "@/services/gallery-cache";
 import { requestVideoGeneration } from "@/services/api/video";
 import { LogPanel, type GenerationLog, saveGenerationLog, readStoredLogs, deleteGenerationLogs } from "@/components/generation-log-panel";
 import { defaultConfig, type AiConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
@@ -1506,6 +1507,7 @@ function InfiniteCanvasPage() {
                     .filter(Boolean),
                 showPrompt: publishShowPrompt,
             });
+            await clearCachedGalleryLists().catch(() => undefined);
             message.success("已上传到画廊");
             setPublishingNodeId(null);
         } catch (error) {

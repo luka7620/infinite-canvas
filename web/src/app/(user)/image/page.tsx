@@ -24,6 +24,7 @@ import { nanoid } from "nanoid";
 import { formatBytes, formatDuration, getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { requestEdit, requestGeneration } from "@/services/api/image";
 import { fetchGeneratedImageBlob, publishGalleryImage } from "@/services/api/gallery";
+import { clearCachedGalleryLists } from "@/services/gallery-cache";
 import { deleteStoredImages, resolveImageUrl, uploadImage, type UploadedImage } from "@/services/image-storage";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -322,6 +323,7 @@ export default function ImagePage() {
                     .filter(Boolean),
                 showPrompt: publishShowPrompt,
             });
+            await clearCachedGalleryLists().catch(() => undefined);
             message.success("已上传到画廊");
             setPublishingImage(null);
         } catch (error) {

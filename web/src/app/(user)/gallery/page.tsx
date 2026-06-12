@@ -1,12 +1,12 @@
 "use client";
 
-import { Clock, Heart, LockKeyhole, MessageCircle, Search, SlidersHorizontal } from "lucide-react";
+import { Clock, Heart, LockKeyhole, MessageCircle, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { App, Avatar, Button, Empty, Image, Input, Modal, Pagination, Segmented, Tag } from "antd";
 
 import { createGalleryComment, fetchGalleryComments, fetchGalleryImages, toggleGalleryLike, type GalleryComment, type GalleryImage, type GalleryQuery } from "@/services/api/gallery";
-import { galleryListCacheKey, hydrateGalleryListImages, readCachedGalleryList, saveCachedGalleryList } from "@/services/gallery-cache";
+import { galleryListCacheKey, hydrateGalleryListImages, isGalleryReloadNavigation, readCachedGalleryList, saveCachedGalleryList } from "@/services/gallery-cache";
 import { useUserStore } from "@/stores/use-user-store";
 
 const pageSize = 24;
@@ -40,6 +40,9 @@ export default function GalleryPage() {
     const [commentSubmitting, setCommentSubmitting] = useState(false);
     const [likingIds, setLikingIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
+    const [refreshNonce, setRefreshNonce] = useState(0);
+    const reloadRefreshHandled = useRef(false);
+    const handledRefreshNonce = useRef(0);
     const hasMoreComments = comments.length < commentTotal;
     const canViewGalleryImages = Boolean(token);
     const query = useMemo<GalleryQuery>(() => ({ keyword, tag: selectedTags, page, pageSize, sort }), [keyword, page, selectedTags, sort]);
@@ -48,9 +51,12 @@ export default function GalleryPage() {
 
     useEffect(() => {
         let active = true;
+        const forceRefresh = refreshNonce !== handledRefreshNonce.current || (!reloadRefreshHandled.current && isGalleryReloadNavigation());
+        handledRefreshNonce.current = refreshNonce;
+        reloadRefreshHandled.current = true;
         setLoading(true);
         void (async () => {
-            const cached = cacheKey ? await readCachedGalleryList(cacheKey) : null;
+            const cached = !forceRefresh && cacheKey ? await readCachedGalleryList(cacheKey) : null;
             if (cached) {
                 if (active) {
                     setItems(cached.items);
@@ -75,7 +81,7 @@ export default function GalleryPage() {
         return () => {
             active = false;
         };
-    }, [cacheKey, message, query, token]);
+    }, [cacheKey, message, query, refreshNonce, token]);
 
     const toggleTag = (tag: string) => {
         setPage(1);
@@ -232,6 +238,9 @@ export default function GalleryPage() {
                             <div className="mt-6 border-t border-border pt-4 text-sm text-muted-foreground">
                                 当前共 <span className="font-semibold text-foreground">{total}</span> 件公开作品
                             </div>
+                            <Button block className="mt-4" icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => setRefreshNonce((value) => value + 1)}>
+                                刷新画廊
+                            </Button>
                         </div>
                     </aside>
 

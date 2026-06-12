@@ -1,14 +1,14 @@
 "use client";
 
-import { ArrowRight, ImagePlus, Layers3, Library, LockKeyhole, Workflow } from "lucide-react";
+import { ArrowRight, ImagePlus, Layers3, Library, LockKeyhole, RefreshCw, Workflow } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { App, Button, Empty, Image, Tag } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { App, Button, Empty, Image, Tag, Tooltip } from "antd";
 
 import { navigationTools, visibleNavigationTools } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
 import { fetchGalleryImages, type GalleryImage } from "@/services/api/gallery";
-import { galleryListCacheKey, hydrateGalleryListImages, readCachedGalleryList, saveCachedGalleryList } from "@/services/gallery-cache";
+import { galleryListCacheKey, hydrateGalleryListImages, isGalleryReloadNavigation, readCachedGalleryList, saveCachedGalleryList } from "@/services/gallery-cache";
 import { fetchPrompts, type Prompt } from "@/services/api/prompts";
 import { useConfigStore } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -32,6 +32,9 @@ export default function IndexPage() {
     const [galleryPreviewOpen, setGalleryPreviewOpen] = useState(false);
     const [previewIndex, setPreviewIndex] = useState(0);
     const [previewOpen, setPreviewOpen] = useState(false);
+    const [galleryRefreshNonce, setGalleryRefreshNonce] = useState(0);
+    const galleryReloadRefreshHandled = useRef(false);
+    const handledGalleryRefreshNonce = useRef(0);
     const heroGallery = galleryShowcase.slice(0, 5);
     const canViewGalleryImages = Boolean(token);
 
@@ -39,9 +42,12 @@ export default function IndexPage() {
         let active = true;
         const query = { pageSize: 12, sort: "time" as const };
         const cacheKey = galleryListCacheKey("home", query);
+        const forceRefresh = galleryRefreshNonce !== handledGalleryRefreshNonce.current || (!galleryReloadRefreshHandled.current && isGalleryReloadNavigation());
+        handledGalleryRefreshNonce.current = galleryRefreshNonce;
+        galleryReloadRefreshHandled.current = true;
         setGalleryReady(false);
         void (async () => {
-            const cached = await readCachedGalleryList(cacheKey);
+            const cached = forceRefresh ? null : await readCachedGalleryList(cacheKey);
             if (cached) {
                 if (active) setGalleryShowcase(cached.items);
                 return;
@@ -58,7 +64,7 @@ export default function IndexPage() {
         return () => {
             active = false;
         };
-    }, [message]);
+    }, [galleryRefreshNonce, message]);
 
     useEffect(() => {
         void fetchPrompts({ pageSize: 12 })
@@ -110,9 +116,14 @@ export default function IndexPage() {
                                 <h2 className="text-base font-semibold text-foreground">画廊精选</h2>
                                 <p className="mt-1 text-sm text-muted-foreground">点击作品可预览，进入画廊查看公开提示词和标签。</p>
                             </div>
-                            <Button href="/gallery" size="small" icon={<ArrowRight className="size-3.5" />} iconPlacement="end">
-                                查看画廊
-                            </Button>
+                            <div className="flex shrink-0 items-center gap-2">
+                                <Tooltip title="刷新画廊">
+                                    <Button aria-label="刷新画廊" size="small" icon={<RefreshCw className="size-3.5" />} loading={!galleryReady} onClick={() => setGalleryRefreshNonce((value) => value + 1)} />
+                                </Tooltip>
+                                <Button href="/gallery" size="small" icon={<ArrowRight className="size-3.5" />} iconPlacement="end">
+                                    查看画廊
+                                </Button>
+                            </div>
                         </div>
                         {heroGallery.length ? (
                             <div className="grid h-[360px] grid-cols-6 grid-rows-6 gap-px bg-border xl:h-[420px]">

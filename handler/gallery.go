@@ -89,6 +89,7 @@ func GalleryImages(w http.ResponseWriter, r *http.Request) {
 		FailError(w, err)
 		return
 	}
+	w.Header().Set("Cache-Control", "no-store")
 	OK(w, result)
 }
 

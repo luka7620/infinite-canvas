@@ -6,6 +6,7 @@ import { App } from "antd";
 
 import { deleteAdminGalleryImage, fetchAdminGalleryImages, saveAdminGalleryImage, setAdminGalleryStatus } from "@/services/api/admin";
 import type { GalleryImage } from "@/services/api/gallery";
+import { clearCachedGalleryLists } from "@/services/gallery-cache";
 import { useUserStore } from "@/stores/use-user-store";
 
 const defaultPageSize = 10;
@@ -20,6 +21,10 @@ export function useAdminGallery() {
     const [tag, setTag] = useState<string[]>([]);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(defaultPageSize);
+    const invalidateGallery = async () => {
+        await queryClient.invalidateQueries({ queryKey: ["admin", "gallery"] });
+        await clearCachedGalleryLists().catch(() => undefined);
+    };
 
     const query = useQuery({
         queryKey: ["admin", "gallery", token, keyword, status, tag, page, pageSize],
@@ -31,7 +36,7 @@ export function useAdminGallery() {
     const saveMutation = useMutation({
         mutationFn: (image: Partial<GalleryImage> & { id: string }) => saveAdminGalleryImage(token, image.id, image),
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["admin", "gallery"] });
+            await invalidateGallery();
             message.success("画廊作品已保存");
         },
         onError: (error) => message.error(error instanceof Error ? error.message : "保存失败"),
@@ -40,7 +45,7 @@ export function useAdminGallery() {
     const statusMutation = useMutation({
         mutationFn: ({ id, nextStatus }: { id: string; nextStatus: GalleryImage["status"] }) => setAdminGalleryStatus(token, id, nextStatus),
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["admin", "gallery"] });
+            await invalidateGallery();
             message.success("状态已更新");
         },
         onError: (error) => message.error(error instanceof Error ? error.message : "操作失败"),
@@ -49,7 +54,7 @@ export function useAdminGallery() {
     const deleteMutation = useMutation({
         mutationFn: (id: string) => deleteAdminGalleryImage(token, id),
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["admin", "gallery"] });
+            await invalidateGallery();
             message.success("画廊作品已删除");
         },
         onError: (error) => message.error(error instanceof Error ? error.message : "删除失败"),

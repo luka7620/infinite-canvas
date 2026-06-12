@@ -134,10 +134,16 @@ func CreateGalleryImageWithFile(item model.GalleryImage, file model.GalleryImage
 		}
 		return tx.Save(&record).Error
 	})
+	if err == nil {
+		cacheGalleryImageFile(file)
+	}
 	return item, err
 }
 
 func GetGalleryImageFileByGalleryID(galleryID string) (model.GalleryImageFile, bool, error) {
+	if item, ok := cachedGalleryImageFile(galleryID); ok {
+		return item, true, nil
+	}
 	db, err := DB()
 	if err != nil {
 		return model.GalleryImageFile{}, false, err
@@ -147,6 +153,9 @@ func GetGalleryImageFileByGalleryID(galleryID string) (model.GalleryImageFile, b
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return model.GalleryImageFile{}, false, nil
 	}
+	if err == nil {
+		cacheGalleryImageFile(item)
+	}
 	return item, err == nil, err
 }
 
@@ -155,7 +164,7 @@ func DeleteGalleryImage(id string, generatedImageID string, now string) error {
 	if err != nil {
 		return err
 	}
-	return db.Transaction(func(tx *gorm.DB) error {
+	err = db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Delete(&model.GalleryImageFile{}, "gallery_id = ?", id).Error; err != nil {
 			return err
 		}
@@ -176,6 +185,10 @@ func DeleteGalleryImage(id string, generatedImageID string, now string) error {
 			"updated_at":   now,
 		}).Error
 	})
+	if err == nil {
+		CacheDelete(galleryImageFileCacheKey(id))
+	}
+	return err
 }
 
 func GetGalleryImageByID(id string) (model.GalleryImage, bool, error) {
@@ -507,6 +520,63 @@ func syncGalleryCounts(tx *gorm.DB, galleryID string, now string) error {
 		"comment_count": commentCount,
 		"updated_at":    now,
 	}).Error
+}
+
+func galleryImageFileCacheKey(galleryID string) string {
+	return CacheKey("gallery-image-file", galleryID)
+}
+
+func cachedGalleryImageFile(galleryID string) (model.GalleryImageFile, bool) {
+	client := Redis()
+	if client == nil || galleryID == "" {
+		return model.GalleryImageFile{}, false
+	}
+	ctx := cacheContext()
+	key := galleryImageFileCacheKey(galleryID)
+	pipe := client.Pipeline()
+	id := pipe.HGet(ctx, key, "id")
+	sourceURL := pipe.HGet(ctx, key, "source_url")
+	mimeType := pipe.HGet(ctx, key, "mime_type")
+	createdAt := pipe.HGet(ctx, key, "created_at")
+	updatedAt := pipe.HGet(ctx, key, "updated_at")
+	data := pipe.HGet(ctx, key, "data")
+	if _, err := pipe.Exec(ctx); err != nil {
+		return model.GalleryImageFile{}, false
+	}
+	bytes, err := data.Bytes()
+	if err != nil || len(bytes) == 0 {
+		return model.GalleryImageFile{}, false
+	}
+	return model.GalleryImageFile{
+		ID:        id.Val(),
+		GalleryID: galleryID,
+		SourceURL: sourceURL.Val(),
+		MimeType:  mimeType.Val(),
+		Size:      int64(len(bytes)),
+		Data:      bytes,
+		CreatedAt: createdAt.Val(),
+		UpdatedAt: updatedAt.Val(),
+	}, true
+}
+
+func cacheGalleryImageFile(file model.GalleryImageFile) {
+	client := Redis()
+	if client == nil || file.GalleryID == "" || len(file.Data) == 0 {
+		return
+	}
+	ctx := cacheContext()
+	key := galleryImageFileCacheKey(file.GalleryID)
+	pipe := client.Pipeline()
+	pipe.HSet(ctx, key, map[string]any{
+		"id":         file.ID,
+		"source_url": file.SourceURL,
+		"mime_type":  file.MimeType,
+		"created_at": file.CreatedAt,
+		"updated_at": file.UpdatedAt,
+		"data":       file.Data,
+	})
+	pipe.Expire(ctx, key, CacheTTL())
+	_, _ = pipe.Exec(ctx)
 }
 
 func countGalleryLikes(tx *gorm.DB, galleryID string) (int, error) {

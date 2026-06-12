@@ -37,6 +37,16 @@ export async function saveCachedGalleryList(key: string, data: GalleryImageListR
     await listStore.setItem(key, { data: cacheableGalleryList(data), cachedAt: Date.now() } satisfies CachedGalleryList);
 }
 
+export async function clearCachedGalleryLists() {
+    await listStore.clear();
+}
+
+export function isGalleryReloadNavigation() {
+    if (typeof performance === "undefined") return false;
+    const [navigation] = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
+    return navigation?.type === "reload";
+}
+
 export async function hydrateGalleryListImages(data: GalleryImageListResponse): Promise<GalleryImageListResponse> {
     const items = await Promise.all(data.items.map(hydrateGalleryImage));
     return { ...data, items };
