@@ -100,6 +100,10 @@ function createCanvasNode(type: CanvasNodeType, position: Position, metadata?: C
     };
 }
 
+function showPublishRewardMessage(message: ReturnType<typeof App.useApp>["message"], credits?: number) {
+    message.success((credits || 0) > 0 ? `已上传到画廊，获得 ${credits} 算力点奖励` : "已上传到画廊");
+}
+
 export default function CanvasPage() {
     const [mounted, setMounted] = useState(false);
 
@@ -228,6 +232,7 @@ function InfiniteCanvasPage() {
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const addAsset = useAssetStore((state) => state.addAsset);
     const token = useUserStore((state) => state.token);
+    const hydrateUser = useUserStore((state) => state.hydrateUser);
     const cleanupAssetImages = useAssetStore((state) => state.cleanupImages);
     const hydrated = useCanvasStore((state) => state.hydrated);
     const createProject = useCanvasStore((state) => state.createProject);
@@ -1497,7 +1502,7 @@ function InfiniteCanvasPage() {
         }
         setPublishLoading(true);
         try {
-            await publishGalleryImage(token, {
+            const result = await publishGalleryImage(token, {
                 generatedImageId: publishingNode.metadata.generatedImageId,
                 title,
                 description: publishDescription.trim(),
@@ -1508,14 +1513,15 @@ function InfiniteCanvasPage() {
                 showPrompt: publishShowPrompt,
             });
             await clearCachedGalleryLists().catch(() => undefined);
-            message.success("已上传到画廊");
+            void hydrateUser();
+            showPublishRewardMessage(message, result.rewardCredits);
             setPublishingNodeId(null);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "上传失败");
         } finally {
             setPublishLoading(false);
         }
-    }, [message, publishDescription, publishShowPrompt, publishTags, publishTitle, publishingNode, token]);
+    }, [hydrateUser, message, publishDescription, publishShowPrompt, publishTags, publishTitle, publishingNode, token]);
 
     const cropImageNode = useCallback(async (node: CanvasNodeData, crop: CanvasImageCropRect) => {
         if (!node.metadata?.content) return;

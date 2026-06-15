@@ -93,6 +93,34 @@ func GalleryImages(w http.ResponseWriter, r *http.Request) {
 	OK(w, result)
 }
 
+func MyLikedGalleryImages(w http.ResponseWriter, r *http.Request) {
+	user, ok := service.UserFromContext(r.Context())
+	if !ok || user.Role == model.UserRoleGuest {
+		Fail(w, "请先登录")
+		return
+	}
+	result, err := service.ListMyLikedGalleryImages(user, parseQuery(r))
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, result)
+}
+
+func MyReceivedLikeGalleryImages(w http.ResponseWriter, r *http.Request) {
+	user, ok := service.UserFromContext(r.Context())
+	if !ok || user.Role == model.UserRoleGuest {
+		Fail(w, "请先登录")
+		return
+	}
+	result, err := service.ListMyReceivedLikeGalleryImages(user, parseQuery(r))
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, result)
+}
+
 func GalleryImageFile(w http.ResponseWriter, r *http.Request, id string) {
 	writeGalleryImageFile(w, id, false)
 }

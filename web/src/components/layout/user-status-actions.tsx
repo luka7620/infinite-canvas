@@ -3,7 +3,7 @@
 import type { CSSProperties, RefObject } from "react";
 import { useEffect, useState } from "react";
 import { App, Avatar, Dropdown, Form, Input, Modal, Tooltip } from "antd";
-import { CalendarCheck, Keyboard, LogOut, Settings2, Shield, UserPen } from "lucide-react";
+import { CalendarCheck, Keyboard, LogOut, Settings2, Shield, UserPen, UserRound } from "lucide-react";
 import type { ItemType } from "antd/es/menu/interface";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -80,6 +80,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
 
     const menuItems: ItemType[] = [
         { key: "user", disabled: true, label: <span className="font-medium text-current">{userName}</span> },
+        { key: "profile-home", icon: <UserRound className="size-4" />, label: <Link href="/profile">个人主页</Link> },
         { key: "profile", icon: <UserPen className="size-4" />, label: "账号资料", onClick: () => setProfileOpen(true) },
         { key: "check-in", icon: <CalendarCheck className="size-4" />, label: <Link href="/check-in">签到中心</Link> },
         ...(user?.role === "admin" ? [{ key: "admin", icon: <Shield className="size-4" />, label: <Link href="/admin">管理后台</Link> }] : []),
@@ -125,7 +126,16 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
             {user ? (
                 <div ref={accountRef}>
                     <Dropdown open={accountOpen} onOpenChange={onAccountOpenChange} trigger={["click"]} placement="bottomRight" getPopupContainer={getPopupContainer} styles={{ root: { minWidth: 150 } }} menu={{ items: menuItems }}>
-                        <button type="button" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-transparent p-0 text-[0] leading-[0] transition" aria-label="账户菜单">
+                        <button
+                            type="button"
+                            className={cn(
+                                "flex shrink-0 items-center transition",
+                                variant === "canvas"
+                                    ? "size-8 justify-center rounded-full bg-transparent p-0 text-[0] leading-[0]"
+                                    : "h-9 max-w-[168px] gap-2 rounded-md border border-border bg-card px-1.5 pr-2 text-sm font-medium text-foreground hover:border-primary/45 hover:bg-secondary",
+                            )}
+                            aria-label="账户菜单"
+                        >
                             <Avatar
                                 size={28}
                                 src={avatarUrl ? <img src={avatarUrl} alt={userName} referrerPolicy="no-referrer" /> : undefined}
@@ -135,6 +145,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
                             >
                                 {avatarText}
                             </Avatar>
+                            {variant === "default" ? <span className="hidden min-w-0 truncate lg:block">{userName}</span> : null}
                         </button>
                     </Dropdown>
                 </div>

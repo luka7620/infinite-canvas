@@ -172,12 +172,14 @@ func adminStatsDistributions(startDate string, endDate string) (model.AdminStats
 	result.UserStatus = labelStatsItems(result.UserStatus, map[string]string{"active": "正常", "ban": "禁用"})
 	result.LoginSource = labelStatsItems(result.LoginSource, map[string]string{"password": "账号密码", "linux-do": "Linux.do"})
 	result.CreditLogType = labelStatsItems(result.CreditLogType, map[string]string{
-		string(model.CreditLogTypeAdminAdjust):   "后台调整",
-		string(model.CreditLogTypeRegisterBonus): "注册赠送",
-		string(model.CreditLogTypeAIConsume):     "模型消费",
-		string(model.CreditLogTypeAIRefund):      "失败返还",
-		string(model.CreditLogTypeCheckIn):       "每日签到",
-		string(model.CreditLogTypeInviteCode):    "邀请码兑换",
+		string(model.CreditLogTypeAdminAdjust):          "后台调整",
+		string(model.CreditLogTypeRegisterBonus):        "注册赠送",
+		string(model.CreditLogTypeAIConsume):            "模型消费",
+		string(model.CreditLogTypeAIRefund):             "失败返还",
+		string(model.CreditLogTypeCheckIn):              "每日签到",
+		string(model.CreditLogTypeInviteCode):           "邀请码兑换",
+		string(model.CreditLogTypeGalleryPublishReward): "上传画廊奖励",
+		string(model.CreditLogTypeGalleryLikeReward):    "点赞画廊奖励",
 	})
 	result.GalleryStatus = labelStatsItems(result.GalleryStatus, map[string]string{string(model.GalleryStatusPublic): "公开", string(model.GalleryStatusHidden): "隐藏"})
 	result.ModelUsage = labelStatsItems(result.ModelUsage, nil)

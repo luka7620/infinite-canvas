@@ -31,6 +31,54 @@ func ListUsers(q model.Query) ([]model.User, int64, error) {
 	return users, total, err
 }
 
+type userLikeCountRow struct {
+	UserID string `gorm:"column:user_id"`
+	Total  int64  `gorm:"column:total"`
+}
+
+type receivedLikeRow struct {
+	OwnerID   string `gorm:"column:owner_id"`
+	GalleryID string `gorm:"column:gallery_id"`
+	UserID    string `gorm:"column:user_id"`
+}
+
+func UserLikeStats(userIDs []string) (map[string]model.UserLikeStats, error) {
+	result := map[string]model.UserLikeStats{}
+	if len(userIDs) == 0 {
+		return result, nil
+	}
+	db, err := DB()
+	if err != nil {
+		return result, err
+	}
+	var givenRows []userLikeCountRow
+	if err := db.Model(&model.GalleryLike{}).Select("user_id, COUNT(DISTINCT gallery_id) AS total").Where("user_id IN ?", userIDs).Group("user_id").Scan(&givenRows).Error; err != nil {
+		return result, err
+	}
+	for _, row := range givenRows {
+		stats := result[row.UserID]
+		stats.Given = int(row.Total)
+		result[row.UserID] = stats
+	}
+	var receivedRows []receivedLikeRow
+	err = db.Table("gallery_likes").Select("gallery_images.user_id AS owner_id, gallery_likes.gallery_id, gallery_likes.user_id").Joins("JOIN gallery_images ON gallery_images.id = gallery_likes.gallery_id").Where("gallery_images.user_id IN ?", userIDs).Scan(&receivedRows).Error
+	if err != nil {
+		return result, err
+	}
+	seenReceived := map[string]bool{}
+	for _, row := range receivedRows {
+		key := row.OwnerID + "\x00" + row.GalleryID + "\x00" + row.UserID
+		if seenReceived[key] {
+			continue
+		}
+		seenReceived[key] = true
+		stats := result[row.OwnerID]
+		stats.Received++
+		result[row.OwnerID] = stats
+	}
+	return result, nil
+}
+
 // CountUsers 返回用户总数。
 func CountUsers() (int64, error) {
 	db, err := DB()
@@ -117,6 +165,71 @@ func RefundUserCredits(id string, credits int, now string) (model.User, bool, er
 	}
 	user, ok, err := GetUserByID(id)
 	return user, ok && tx.RowsAffected > 0, err
+}
+
+func AddUserCreditsWithLog(id string, credits int, now string, log model.CreditLog) (model.User, bool, error) {
+	db, err := DB()
+	if err != nil {
+		return model.User{}, false, err
+	}
+	if credits < 0 {
+		credits = 0
+	}
+	var user model.User
+	err = db.Transaction(func(tx *gorm.DB) error {
+		if credits > 0 {
+			result := tx.Model(&model.User{}).Where("id = ?", id).Updates(map[string]any{
+				"credits":    gorm.Expr("credits + ?", credits),
+				"updated_at": now,
+			})
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				return gorm.ErrRecordNotFound
+			}
+		}
+		if err := tx.First(&user, "id = ?", id).Error; err != nil {
+			return err
+		}
+		log.UserID = id
+		log.Amount = credits
+		log.Balance = user.Credits
+		if log.CreatedAt == "" {
+			log.CreatedAt = now
+		}
+		return tx.Save(&log).Error
+	})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, false, nil
+	}
+	return user, err == nil, err
+}
+
+func CountCreditLogsByType(userID string, logType model.CreditLogType, start string, end string) (int64, error) {
+	db, err := DB()
+	if err != nil {
+		return 0, err
+	}
+	tx := db.Model(&model.CreditLog{}).Where("user_id = ? AND type = ?", userID, logType)
+	if start != "" {
+		tx = tx.Where("created_at >= ?", start)
+	}
+	if end != "" {
+		tx = tx.Where("created_at < ?", end)
+	}
+	var total int64
+	return total, tx.Distinct("related_id").Count(&total).Error
+}
+
+func HasCreditLog(userID string, logType model.CreditLogType, relatedID string) (bool, error) {
+	db, err := DB()
+	if err != nil {
+		return false, err
+	}
+	var total int64
+	err = db.Model(&model.CreditLog{}).Where("user_id = ? AND type = ? AND related_id = ?", userID, logType, relatedID).Count(&total).Error
+	return total > 0, err
 }
 
 func CheckInUser(id string, date string, credits int, now string, log model.CreditLog) (model.User, bool, error) {

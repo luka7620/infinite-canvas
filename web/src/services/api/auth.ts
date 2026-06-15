@@ -13,6 +13,8 @@ export type AuthUser = {
     credits: number;
     lastCheckInDate: string;
     checkedInToday: boolean;
+    likeGivenCount: number;
+    likeReceivedCount: number;
     createdAt: string;
     updatedAt: string;
 };

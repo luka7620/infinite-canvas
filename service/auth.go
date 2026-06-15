@@ -236,9 +236,7 @@ func CurrentAuthUser(tokenText string) (model.AuthUser, bool) {
 	if user.Status == model.UserStatusBan {
 		return model.AuthUser{}, false
 	}
-	authUser := model.PublicUser(user)
-	authUser.CheckedInToday = user.LastCheckInDate == checkInDate()
-	return authUser, true
+	return authUserWithState(user), true
 }
 
 func CheckIn(userID string) (model.CheckInResult, error) {
@@ -268,8 +266,7 @@ func CheckIn(userID string) (model.CheckInResult, error) {
 		}
 		return model.CheckInResult{}, safeMessageError{message: "今天已经签到过了"}
 	}
-	authUser := model.PublicUser(user)
-	authUser.CheckedInToday = true
+	authUser := authUserWithState(user)
 	return model.CheckInResult{User: authUser, Credits: credits}, nil
 }
 
@@ -278,11 +275,27 @@ func ListUsers(q model.Query) (model.UserList, error) {
 	if err != nil {
 		return model.UserList{}, err
 	}
+	stats, err := repository.UserLikeStats(userIDs(users))
+	if err != nil {
+		return model.UserList{}, err
+	}
 	for i := range users {
 		users[i].Password = ""
+		users[i].LikeGivenCount = stats[users[i].ID].Given
+		users[i].LikeReceivedCount = stats[users[i].ID].Received
 		normalizeUserDefaults(&users[i])
 	}
 	return model.UserList{Items: users, Total: int(total)}, nil
+}
+
+func userIDs(users []model.User) []string {
+	ids := make([]string, 0, len(users))
+	for _, user := range users {
+		if user.ID != "" {
+			ids = append(ids, user.ID)
+		}
+	}
+	return ids
 }
 
 func SaveUser(user model.User, password string) (model.User, error) {
@@ -362,9 +375,7 @@ func SaveProfile(id string, input ProfileInput) (model.AuthUser, error) {
 	if err != nil {
 		return model.AuthUser{}, err
 	}
-	authUser := model.PublicUser(user)
-	authUser.CheckedInToday = user.LastCheckInDate == checkInDate()
-	return authUser, nil
+	return authUserWithState(user), nil
 }
 
 func AdjustUserCredits(id string, credits int) (model.User, error) {
@@ -477,9 +488,18 @@ func newSession(user model.User) (model.AuthSession, error) {
 	if err != nil {
 		return model.AuthSession{}, err
 	}
+	return model.AuthSession{Token: token, User: authUserWithState(user)}, nil
+}
+
+func authUserWithState(user model.User) model.AuthUser {
 	authUser := model.PublicUser(user)
 	authUser.CheckedInToday = user.LastCheckInDate == checkInDate()
-	return model.AuthSession{Token: token, User: authUser}, nil
+	stats, err := repository.UserLikeStats([]string{user.ID})
+	if err == nil {
+		authUser.LikeGivenCount = stats[user.ID].Given
+		authUser.LikeReceivedCount = stats[user.ID].Received
+	}
+	return authUser
 }
 
 func newToken(user model.User) (string, error) {

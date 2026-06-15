@@ -171,7 +171,7 @@ export default function AdminGalleryPage() {
                             </Col>
                             <Col flex="260px">
                                 <Form.Item label="发布时间">
-                                    <DatePicker.RangePicker className="w-full" value={datePickerValue} allowClear format="YYYY-MM-DD" placeholder={["开始日期", "结束日期"]} onChange={(_, value) => changeDateRange(value as [string, string])} />
+                                    <DatePicker.RangePicker className="w-full" value={datePickerValue} allowClear format="YYYY-MM-DD" placeholder={["开始日期", "结束日期"]} onChange={(_, value) => changeDateRange(value)} />
                                 </Form.Item>
                             </Col>
                             <Col flex="none">

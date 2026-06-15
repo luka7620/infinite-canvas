@@ -63,6 +63,7 @@ export default function ImagePage() {
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const addAsset = useAssetStore((state) => state.addAsset);
     const token = useUserStore((state) => state.token);
+    const hydrateUser = useUserStore((state) => state.hydrateUser);
     const [prompt, setPrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
     const [results, setResults] = useState<GenerationResult[]>([]);
@@ -313,7 +314,7 @@ export default function ImagePage() {
         }
         setPublishLoading(true);
         try {
-            await publishGalleryImage(token, {
+            const result = await publishGalleryImage(token, {
                 generatedImageId: publishingImage.generatedImageId,
                 title: publishTitle,
                 description: publishDescription,
@@ -324,7 +325,8 @@ export default function ImagePage() {
                 showPrompt: publishShowPrompt,
             });
             await clearCachedGalleryLists().catch(() => undefined);
-            message.success("已上传到画廊");
+            void hydrateUser();
+            showPublishRewardMessage(message, result.rewardCredits);
             setPublishingImage(null);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "上传失败");
@@ -814,4 +816,8 @@ function buildLog({
         images,
         thumbnails: images.map((image) => image.dataUrl),
     };
+}
+
+function showPublishRewardMessage(message: ReturnType<typeof App.useApp>["message"], credits?: number) {
+    message.success((credits || 0) > 0 ? `已上传到画廊，获得 ${credits} 算力点奖励` : "已上传到画廊");
 }

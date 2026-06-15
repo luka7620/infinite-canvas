@@ -9,6 +9,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"log"
 	"mime"
 	"net/http"
 	"net/url"
@@ -114,6 +115,10 @@ func GetGeneratedImageFile(id string, user model.AuthUser) ([]byte, string, erro
 }
 
 func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (model.GalleryImage, error) {
+	interactionSetting, err := GalleryInteractionSetting()
+	if err != nil {
+		return model.GalleryImage{}, err
+	}
 	record, ok, err := repository.GetGeneratedImageRecordByID(strings.TrimSpace(input.GeneratedImageID))
 	if err != nil || !ok {
 		if err != nil {
@@ -201,6 +206,14 @@ func PublishGalleryImage(user model.AuthUser, input PublishGalleryImageInput) (m
 	record.IsPublished = true
 	record.UpdatedAt = now
 	item, err = repository.CreateGalleryImageWithFile(item, file, record)
+	if err == nil {
+		rewardCredits, rewardErr := saveGalleryInteractionReward(user.ID, model.CreditLogTypeGalleryPublishReward, item.ID, interactionSetting.UploadRewardCredits, interactionSetting.DailyUploadLimit, "上传画廊奖励")
+		if rewardErr != nil {
+			log.Printf("gallery publish reward failed: %v", rewardErr)
+		} else {
+			item.RewardCredits = rewardCredits
+		}
+	}
 	return item, err
 }
 
@@ -220,15 +233,65 @@ func ListGalleryImages(q model.Query, userID string) (model.GalleryImageList, er
 	return model.GalleryImageList{Items: publicGalleryImages(items), Tags: tags, Total: int(total)}, nil
 }
 
+func ListMyLikedGalleryImages(user model.AuthUser, q model.Query) (model.GalleryImageList, error) {
+	if strings.TrimSpace(user.ID) == "" || user.Role == model.UserRoleGuest {
+		return model.GalleryImageList{}, safeMessageError{message: "请先登录"}
+	}
+	items, total, err := repository.ListLikedGalleryImages(user.ID, q)
+	if err != nil {
+		return model.GalleryImageList{}, err
+	}
+	items, err = repository.MarkGalleryLiked(items, user.ID)
+	if err != nil {
+		return model.GalleryImageList{}, err
+	}
+	return model.GalleryImageList{Items: publicGalleryImages(items), Tags: []string{}, Total: int(total)}, nil
+}
+
+func ListMyReceivedLikeGalleryImages(user model.AuthUser, q model.Query) (model.GalleryImageList, error) {
+	if strings.TrimSpace(user.ID) == "" || user.Role == model.UserRoleGuest {
+		return model.GalleryImageList{}, safeMessageError{message: "请先登录"}
+	}
+	items, total, err := repository.ListReceivedLikeGalleryImages(user.ID, q)
+	if err != nil {
+		return model.GalleryImageList{}, err
+	}
+	items, err = repository.MarkGalleryLiked(items, user.ID)
+	if err != nil {
+		return model.GalleryImageList{}, err
+	}
+	return model.GalleryImageList{Items: publicGalleryImages(items), Tags: []string{}, Total: int(total)}, nil
+}
+
 func ToggleGalleryLike(id string, user model.AuthUser) (model.GalleryLikeResult, error) {
 	if strings.TrimSpace(user.ID) == "" || user.Role == model.UserRoleGuest {
 		return model.GalleryLikeResult{}, safeMessageError{message: "请先登录"}
 	}
-	item, liked, err := repository.ToggleGalleryLike(strings.TrimSpace(id), user.ID, now())
+	galleryID := strings.TrimSpace(id)
+	alreadyLiked, err := repository.HasGalleryLike(galleryID, user.ID)
+	if err != nil {
+		return model.GalleryLikeResult{}, err
+	}
+	interactionSetting := model.GalleryInteractionSetting{}
+	if !alreadyLiked {
+		interactionSetting, err = GalleryInteractionSetting()
+		if err != nil {
+			return model.GalleryLikeResult{}, err
+		}
+	}
+	item, liked, err := repository.ToggleGalleryLike(galleryID, user.ID, now())
 	if err != nil {
 		return model.GalleryLikeResult{}, galleryNotFoundError(err)
 	}
-	return model.GalleryLikeResult{Image: publicGalleryImage(item), Liked: liked}, nil
+	if liked {
+		rewardCredits, rewardErr := saveGalleryInteractionReward(user.ID, model.CreditLogTypeGalleryLikeReward, item.ID, interactionSetting.LikeRewardCredits, interactionSetting.DailyLikeLimit, "点赞画廊奖励")
+		if rewardErr != nil {
+			log.Printf("gallery like reward failed: %v", rewardErr)
+		} else {
+			item.RewardCredits = rewardCredits
+		}
+	}
+	return model.GalleryLikeResult{Image: publicGalleryImage(item), Liked: liked, RewardCredits: item.RewardCredits}, nil
 }
 
 func ListGalleryComments(id string, q model.Query) (model.GalleryCommentList, error) {
@@ -364,6 +427,56 @@ func GetGalleryImageFile(id string, admin bool) (model.GalleryImageFile, error) 
 		return model.GalleryImageFile{}, safeMessageError{message: "画廊图片不存在"}
 	}
 	return file, nil
+}
+
+func galleryInteractionDayRange() (string, string) {
+	date := checkInDate()
+	parsed, err := time.Parse(time.DateOnly, date)
+	if err != nil {
+		return date + "T00:00:00", ""
+	}
+	return date + "T00:00:00", parsed.AddDate(0, 0, 1).Format(time.DateOnly) + "T00:00:00"
+}
+
+func saveGalleryInteractionReward(userID string, logType model.CreditLogType, relatedID string, credits int, dailyLimit int, remark string) (int, error) {
+	if strings.TrimSpace(userID) == "" {
+		return 0, nil
+	}
+	if credits < 0 {
+		credits = 0
+	}
+	rewarded, err := repository.HasCreditLog(userID, logType, relatedID)
+	if err != nil {
+		return 0, err
+	}
+	if rewarded {
+		return 0, nil
+	}
+	if dailyLimit > 0 {
+		start, end := galleryInteractionDayRange()
+		total, err := repository.CountCreditLogsByType(userID, logType, start, end)
+		if err != nil {
+			return 0, err
+		}
+		if int(total) >= dailyLimit {
+			return 0, nil
+		}
+	}
+	changedAt := now()
+	_, ok, err := repository.AddUserCreditsWithLog(userID, credits, changedAt, model.CreditLog{
+		ID:        newID("credit"),
+		Type:      logType,
+		RelatedID: relatedID,
+		Remark:    remark,
+		CreatedAt: changedAt,
+	})
+	if err != nil {
+		return 0, err
+	}
+	if !ok {
+		return 0, safeMessageError{message: "用户不存在"}
+	}
+	return credits, nil
 }
 
 func publicGalleryImages(items []model.GalleryImage) []model.GalleryImage {

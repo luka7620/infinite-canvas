@@ -47,6 +47,7 @@ type GalleryImage struct {
 	LikeCount        int           `json:"likeCount"`
 	CommentCount     int           `json:"commentCount"`
 	Liked            bool          `json:"liked" gorm:"-"`
+	RewardCredits    int           `json:"rewardCredits,omitempty" gorm:"-"`
 	CreatedAt        string        `json:"createdAt"`
 	UpdatedAt        string        `json:"updatedAt"`
 }
@@ -100,6 +101,7 @@ type GalleryCommentList struct {
 }
 
 type GalleryLikeResult struct {
-	Image GalleryImage `json:"image"`
-	Liked bool         `json:"liked"`
+	Image         GalleryImage `json:"image"`
+	Liked         bool         `json:"liked"`
+	RewardCredits int          `json:"rewardCredits,omitempty"`
 }

@@ -86,6 +86,7 @@ func normalizePublicSetting(setting model.PublicSetting) model.PublicSetting {
 		setting.Auth.RegisterCredits = 0
 	}
 	setting.CheckIn = normalizeCheckInRewardSetting(setting.CheckIn)
+	setting.GalleryInteraction = normalizeGalleryInteractionSetting(setting.GalleryInteraction)
 	if setting.Features.VideoEnabled == nil {
 		enabled := true
 		setting.Features.VideoEnabled = &enabled
@@ -110,6 +111,30 @@ func normalizeCheckInRewardSetting(setting model.CheckInRewardSetting) model.Che
 		setting.MinCredits, setting.MaxCredits = setting.MaxCredits, setting.MinCredits
 	}
 	return setting
+}
+
+func normalizeGalleryInteractionSetting(setting model.GalleryInteractionSetting) model.GalleryInteractionSetting {
+	if setting.UploadRewardCredits < 0 {
+		setting.UploadRewardCredits = 0
+	}
+	if setting.LikeRewardCredits < 0 {
+		setting.LikeRewardCredits = 0
+	}
+	if setting.DailyUploadLimit < 0 {
+		setting.DailyUploadLimit = 0
+	}
+	if setting.DailyLikeLimit < 0 {
+		setting.DailyLikeLimit = 0
+	}
+	return setting
+}
+
+func GalleryInteractionSetting() (model.GalleryInteractionSetting, error) {
+	settings, err := repository.GetSettings()
+	if err != nil {
+		return model.GalleryInteractionSetting{}, err
+	}
+	return normalizePublicSetting(settings.Public).GalleryInteraction, nil
 }
 
 func ModelCost(modelName string) (int, error) {

@@ -23,26 +23,33 @@ const (
 
 // User 系统用户。
 type User struct {
-	ID              string     `json:"id" gorm:"primaryKey"`
-	Username        string     `json:"username" gorm:"uniqueIndex"`
-	Password        string     `json:"password,omitempty"`
-	Email           string     `json:"email"`
-	DisplayName     string     `json:"displayName"`
-	AvatarURL       string     `json:"avatarUrl"`
-	Role            UserRole   `json:"role"`
-	Credits         int        `json:"credits"`
-	AffCode         string     `json:"affCode" gorm:"uniqueIndex"`
-	AffCount        int        `json:"affCount"`
-	InviterID       string     `json:"inviterId"`
-	GithubID        string     `json:"githubId"`
-	LinuxDoID       string     `json:"linuxDoId" gorm:"index"`
-	WechatID        string     `json:"wechatId"`
-	Status          UserStatus `json:"status"`
-	LastLoginAt     string     `json:"lastLoginAt"`
-	LastCheckInDate string     `json:"lastCheckInDate"`
-	Extra           string     `json:"extra" gorm:"type:text"`
-	CreatedAt       string     `json:"createdAt"`
-	UpdatedAt       string     `json:"updatedAt"`
+	ID                string     `json:"id" gorm:"primaryKey"`
+	Username          string     `json:"username" gorm:"uniqueIndex"`
+	Password          string     `json:"password,omitempty"`
+	Email             string     `json:"email"`
+	DisplayName       string     `json:"displayName"`
+	AvatarURL         string     `json:"avatarUrl"`
+	Role              UserRole   `json:"role"`
+	Credits           int        `json:"credits"`
+	AffCode           string     `json:"affCode" gorm:"uniqueIndex"`
+	AffCount          int        `json:"affCount"`
+	InviterID         string     `json:"inviterId"`
+	GithubID          string     `json:"githubId"`
+	LinuxDoID         string     `json:"linuxDoId" gorm:"index"`
+	WechatID          string     `json:"wechatId"`
+	Status            UserStatus `json:"status"`
+	LastLoginAt       string     `json:"lastLoginAt"`
+	LastCheckInDate   string     `json:"lastCheckInDate"`
+	LikeGivenCount    int        `json:"likeGivenCount" gorm:"-"`
+	LikeReceivedCount int        `json:"likeReceivedCount" gorm:"-"`
+	Extra             string     `json:"extra" gorm:"type:text"`
+	CreatedAt         string     `json:"createdAt"`
+	UpdatedAt         string     `json:"updatedAt"`
+}
+
+type UserLikeStats struct {
+	Given    int `json:"given"`
+	Received int `json:"received"`
 }
 
 type UserIdentity struct {
@@ -61,16 +68,18 @@ type UserList struct {
 
 // AuthUser 用户公开信息。
 type AuthUser struct {
-	ID              string   `json:"id"`
-	Username        string   `json:"username"`
-	DisplayName     string   `json:"displayName"`
-	AvatarURL       string   `json:"avatarUrl"`
-	Role            UserRole `json:"role"`
-	Credits         int      `json:"credits"`
-	LastCheckInDate string   `json:"lastCheckInDate"`
-	CheckedInToday  bool     `json:"checkedInToday"`
-	CreatedAt       string   `json:"createdAt"`
-	UpdatedAt       string   `json:"updatedAt"`
+	ID                string   `json:"id"`
+	Username          string   `json:"username"`
+	DisplayName       string   `json:"displayName"`
+	AvatarURL         string   `json:"avatarUrl"`
+	Role              UserRole `json:"role"`
+	Credits           int      `json:"credits"`
+	LastCheckInDate   string   `json:"lastCheckInDate"`
+	CheckedInToday    bool     `json:"checkedInToday"`
+	LikeGivenCount    int      `json:"likeGivenCount"`
+	LikeReceivedCount int      `json:"likeReceivedCount"`
+	CreatedAt         string   `json:"createdAt"`
+	UpdatedAt         string   `json:"updatedAt"`
 }
 
 // AuthSession 登录会话信息。
@@ -101,12 +110,14 @@ type CheckInResult struct {
 type CreditLogType string
 
 const (
-	CreditLogTypeAdminAdjust   CreditLogType = "admin_adjust"
-	CreditLogTypeRegisterBonus CreditLogType = "register_bonus"
-	CreditLogTypeAIConsume     CreditLogType = "ai_consume"
-	CreditLogTypeAIRefund      CreditLogType = "ai_refund"
-	CreditLogTypeCheckIn       CreditLogType = "check_in"
-	CreditLogTypeInviteCode    CreditLogType = "invite_code"
+	CreditLogTypeAdminAdjust          CreditLogType = "admin_adjust"
+	CreditLogTypeRegisterBonus        CreditLogType = "register_bonus"
+	CreditLogTypeAIConsume            CreditLogType = "ai_consume"
+	CreditLogTypeAIRefund             CreditLogType = "ai_refund"
+	CreditLogTypeCheckIn              CreditLogType = "check_in"
+	CreditLogTypeInviteCode           CreditLogType = "invite_code"
+	CreditLogTypeGalleryPublishReward CreditLogType = "gallery_publish_reward"
+	CreditLogTypeGalleryLikeReward    CreditLogType = "gallery_like_reward"
 )
 
 // CreditLog 用户算力点变更流水。

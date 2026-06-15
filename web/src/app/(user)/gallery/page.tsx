@@ -23,6 +23,7 @@ export default function GalleryPage() {
     const { message } = App.useApp();
     const token = useUserStore((state) => state.token);
     const user = useUserStore((state) => state.user);
+    const hydrateUser = useUserStore((state) => state.hydrateUser);
     const [items, setItems] = useState<GalleryImage[]>([]);
     const [tags, setTags] = useState<string[]>([]);
     const [total, setTotal] = useState(0);
@@ -115,6 +116,8 @@ export default function GalleryPage() {
         try {
             const result = await toggleGalleryLike(token, item.id);
             updateImage(result.image);
+            void hydrateUser();
+            showGalleryRewardMessage(message, result.rewardCredits || result.image.rewardCredits);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "点赞失败");
         } finally {
@@ -231,7 +234,7 @@ export default function GalleryPage() {
                                     placeholder={["开始日期", "结束日期"]}
                                     onChange={(_, value) => {
                                         setPage(1);
-                                        setDateRange(value as [string, string]);
+                                        setDateRange(normalizeDateRange(value));
                                     }}
                                 />
                             </div>
@@ -424,6 +427,10 @@ function GallerySortLabel({ icon, text }: { icon: ReactNode; text: string }) {
     );
 }
 
+function normalizeDateRange(value: string | string[]) {
+    return Array.isArray(value) ? ([value[0] || "", value[1] || ""] as [string, string]) : (["", ""] as [string, string]);
+}
+
 function mergeGalleryImage(item: GalleryImage, patch: Partial<GalleryImage>) {
     return { ...item, ...patch, imageUrl: item.imageUrl.startsWith("blob:") ? item.imageUrl : patch.imageUrl || item.imageUrl };
 }
@@ -444,4 +451,8 @@ function galleryUserName(user: Pick<GalleryImage | GalleryComment, "username" | 
 
 function galleryAvatarText(user: Pick<GalleryImage | GalleryComment, "username" | "displayName">) {
     return galleryUserName(user).slice(0, 1);
+}
+
+function showGalleryRewardMessage(message: ReturnType<typeof App.useApp>["message"], credits?: number) {
+    if ((credits || 0) > 0) message.success(`获得 ${credits} 算力点奖励`);
 }

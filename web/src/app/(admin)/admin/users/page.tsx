@@ -85,6 +85,17 @@ export default function AdminUsersPage() {
             render: (_, item) => <Typography.Text>{item.credits}</Typography.Text>,
         },
         {
+            title: "点赞",
+            key: "likes",
+            width: 132,
+            render: (_, item) => (
+                <Flex vertical gap={2}>
+                    <Typography.Text>收到 {item.likeReceivedCount || 0}</Typography.Text>
+                    <Typography.Text type="secondary">给出 {item.likeGivenCount || 0}</Typography.Text>
+                </Flex>
+            ),
+        },
+        {
             title: "Linux.do",
             dataIndex: "linuxDoId",
             width: 140,

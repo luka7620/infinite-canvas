@@ -39,6 +39,8 @@ func New() *gin.Engine {
 	api.GET("/prompts", middleware.OptionalAuth, gin.WrapF(handler.Prompts))
 	api.GET("/assets", middleware.OptionalAuth, gin.WrapF(handler.Assets))
 	api.GET("/gallery", middleware.OptionalAuth, gin.WrapF(handler.GalleryImages))
+	api.GET("/me/gallery/liked", middleware.UserAuth, gin.WrapF(handler.MyLikedGalleryImages))
+	api.GET("/me/gallery/received-likes", middleware.UserAuth, gin.WrapF(handler.MyReceivedLikeGalleryImages))
 	api.GET("/gallery/:id/image", func(c *gin.Context) {
 		handler.GalleryImageFile(c.Writer, c.Request, c.Param("id"))
 	})

@@ -26,6 +26,8 @@ export type AdminUser = {
     status: "active" | "ban";
     lastLoginAt: string;
     lastCheckInDate: string;
+    likeGivenCount: number;
+    likeReceivedCount: number;
     createdAt: string;
     updatedAt: string;
 };
@@ -313,6 +315,13 @@ export type AdminCheckInSettings = {
     maxCredits: number;
 };
 
+export type AdminGalleryInteractionSettings = {
+    uploadRewardCredits: number;
+    likeRewardCredits: number;
+    dailyUploadLimit: number;
+    dailyLikeLimit: number;
+};
+
 export type AdminFeatureSettings = {
     videoEnabled: boolean;
 };
@@ -327,6 +336,7 @@ export type AdminPublicSettings = {
         };
     };
     checkIn: AdminCheckInSettings;
+    galleryInteraction: AdminGalleryInteractionSettings;
     features: AdminFeatureSettings;
 };
 

@@ -38,6 +38,7 @@ export type GalleryImage = {
     likeCount: number;
     commentCount: number;
     liked: boolean;
+    rewardCredits?: number;
     createdAt: string;
     updatedAt: string;
 };
@@ -85,6 +86,7 @@ export type GalleryCommentListResponse = {
 export type GalleryLikeResponse = {
     image: GalleryImage;
     liked: boolean;
+    rewardCredits?: number;
 };
 
 export type PublishGalleryImagePayload = {
@@ -97,6 +99,14 @@ export type PublishGalleryImagePayload = {
 
 export async function fetchGalleryImages(query: GalleryQuery = {}, token?: string) {
     return apiGet<GalleryImageListResponse>("/api/gallery", compactApiParams(query), token);
+}
+
+export async function fetchMyLikedGalleryImages(token: string, query: GalleryQuery = {}) {
+    return apiGet<GalleryImageListResponse>("/api/me/gallery/liked", compactApiParams(query), token);
+}
+
+export async function fetchMyReceivedLikeGalleryImages(token: string, query: GalleryQuery = {}) {
+    return apiGet<GalleryImageListResponse>("/api/me/gallery/received-likes", compactApiParams(query), token);
 }
 
 export async function fetchGeneratedImages(token: string, query: GalleryQuery = {}) {

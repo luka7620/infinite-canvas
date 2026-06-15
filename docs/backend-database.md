@@ -221,6 +221,7 @@
 | `modelChannel` | object | 模型渠道公开配置组 |
 | `auth` | object | 公开登录配置 |
 | `checkIn` | object | 每日签到奖励配置 |
+| `galleryInteraction` | object | 画廊上传和点赞奖励、每日奖励上限配置 |
 | `features` | object | 前台功能开关公开配置 |
 
 `modelChannel` 当前字段：
@@ -251,6 +252,15 @@
 | `credits` | number | 固定模式发放点数，默认 10 |
 | `minCredits` | number | 随机模式最小发放点数 |
 | `maxCredits` | number | 随机模式最大发放点数 |
+
+`galleryInteraction` 当前字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `uploadRewardCredits` | number | 用户成功上传公开画廊作品后奖励的算力点，0 表示不奖励 |
+| `likeRewardCredits` | number | 用户新增点赞后奖励给点赞者的算力点，同一作品重复点赞不重复奖励，0 表示不奖励 |
+| `dailyUploadLimit` | number | 每个用户每日上传画廊可获得奖励的次数上限，超过后仍可上传但不再获得算力点，0 表示不限制 |
+| `dailyLikeLimit` | number | 每个用户每日新增点赞可获得奖励的次数上限，超过后仍可点赞但不再获得算力点，同一作品重复点赞不重复计入奖励次数，0 表示不限制 |
 
 `auth` 当前字段：
 
@@ -304,13 +314,13 @@
 
 ### credit_logs
 
-用户算力点变更流水表。当前记录后台手动调整、注册赠送、每日签到、邀请码兑换、模型调用预扣和模型调用失败返还。
+用户算力点变更流水表。当前记录后台手动调整、注册赠送、每日签到、邀请码兑换、模型调用预扣、模型调用失败返还、画廊上传奖励和画廊点赞奖励。
 
 | 字段           | 类型     | 说明                       |
 |--------------|--------|--------------------------|
 | `id`         | string | 主键                       |
 | `user_id`    | string | 关联用户 ID                  |
-| `type`       | string | 类型：`admin_adjust`、`check_in`、`invite_code`、`ai_consume`、`ai_refund` |
+| `type`       | string | 类型：`admin_adjust`、`register_bonus`、`check_in`、`invite_code`、`ai_consume`、`ai_refund`、`gallery_publish_reward`、`gallery_like_reward` |
 | `amount`     | number | 本次变动数量，增加为正，扣减为负         |
 | `balance`    | number | 变动后的用户算力点余额              |
 | `related_id` | string | 关联业务 ID，可为空                |
@@ -328,6 +338,8 @@
 | `invite_code` | 邀请码兑换获得 |
 | `ai_consume` | 调用后端模型接口消费 |
 | `ai_refund` | 后端模型接口调用失败返还 |
+| `gallery_publish_reward` | 上传画廊作品奖励或计数记录 |
+| `gallery_like_reward` | 点赞画廊作品奖励或计数记录 |
 
 ### invite_codes
 

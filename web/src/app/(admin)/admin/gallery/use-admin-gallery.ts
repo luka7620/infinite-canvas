@@ -98,7 +98,10 @@ export function useAdminGallery() {
         searchImages: (value = keyword) => updateFilters({ keyword: value }),
         changeStatus: (value: string) => updateFilters({ status: value, tag: [] }),
         changeTag: (value: string[]) => updateFilters({ tag: value }),
-        changeDateRange: (value: [string, string]) => updateFilters({ startDate: value[0], endDate: value[1] }),
+        changeDateRange: (value: string | string[]) => {
+            const range = Array.isArray(value) ? value : ["", ""];
+            updateFilters({ startDate: range[0] || "", endDate: range[1] || "" });
+        },
         changePage: (value: number) => updateFilters({ page: value }),
         changePageSize: (value: number) => updateFilters({ pageSize: value }),
         resetFilters: () => updateFilters({ keyword: "", status: "", tag: [], startDate: "", endDate: "", page: 1, pageSize: defaultPageSize }),

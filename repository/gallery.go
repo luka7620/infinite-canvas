@@ -73,6 +73,60 @@ func ListGalleryImages(q model.Query, admin bool) ([]model.GalleryImage, int64, 
 	return items, total, err
 }
 
+func ListLikedGalleryImages(userID string, q model.Query) ([]model.GalleryImage, int64, error) {
+	db, err := DB()
+	if err != nil {
+		return nil, 0, err
+	}
+	q.Normalize()
+	likedSubQuery := db.Model(&model.GalleryLike{}).
+		Select("gallery_id, MAX(created_at) AS liked_at").
+		Where("user_id = ?", userID).
+		Group("gallery_id")
+	tx := db.Model(&model.GalleryImage{}).
+		Joins("JOIN (?) AS liked_gallery_likes ON liked_gallery_likes.gallery_id = gallery_images.id", likedSubQuery).
+		Where("gallery_images.status = ?", model.GalleryStatusPublic)
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var items []model.GalleryImage
+	err = tx.Select("gallery_images.*").Order(likedGalleryImageOrder(q.Sort)).Offset(q.Offset()).Limit(q.PageSize).Find(&items).Error
+	if err != nil {
+		return items, total, err
+	}
+	items, err = fillGalleryCounts(db, items)
+	if err != nil {
+		return items, total, err
+	}
+	items, err = fillGalleryImageUsers(db, items)
+	return items, total, err
+}
+
+func ListReceivedLikeGalleryImages(userID string, q model.Query) ([]model.GalleryImage, int64, error) {
+	db, err := DB()
+	if err != nil {
+		return nil, 0, err
+	}
+	q.Normalize()
+	tx := db.Model(&model.GalleryImage{}).Where("user_id = ? AND status = ? AND like_count > 0", userID, model.GalleryStatusPublic)
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var items []model.GalleryImage
+	err = tx.Order(receivedLikeGalleryImageOrder(q.Sort)).Offset(q.Offset()).Limit(q.PageSize).Find(&items).Error
+	if err != nil {
+		return items, total, err
+	}
+	items, err = fillGalleryCounts(db, items)
+	if err != nil {
+		return items, total, err
+	}
+	items, err = fillGalleryImageUsers(db, items)
+	return items, total, err
+}
+
 func MarkGalleryLiked(items []model.GalleryImage, userID string) ([]model.GalleryImage, error) {
 	if len(items) == 0 || userID == "" {
 		return items, nil
@@ -218,6 +272,16 @@ func GetPublicGalleryImageByID(id string) (model.GalleryImage, bool, error) {
 	return item, err == nil, err
 }
 
+func HasGalleryLike(galleryID string, userID string) (bool, error) {
+	db, err := DB()
+	if err != nil {
+		return false, err
+	}
+	var total int64
+	err = db.Model(&model.GalleryLike{}).Where("gallery_id = ? AND user_id = ?", galleryID, userID).Count(&total).Error
+	return total > 0, err
+}
+
 func ToggleGalleryLike(galleryID string, userID string, now string) (model.GalleryImage, bool, error) {
 	db, err := DB()
 	if err != nil {
@@ -240,7 +304,7 @@ func ToggleGalleryLike(galleryID string, userID string, now string) (model.Galle
 			return err
 		} else {
 			liked = false
-			if err := tx.Delete(&model.GalleryLike{}, "id = ?", existing.ID).Error; err != nil {
+			if err := tx.Delete(&model.GalleryLike{}, "gallery_id = ? AND user_id = ?", galleryID, userID).Error; err != nil {
 				return err
 			}
 		}
@@ -399,6 +463,24 @@ func galleryImageOrder(sort string) string {
 	}
 }
 
+func likedGalleryImageOrder(sort string) string {
+	switch sort {
+	case "likes":
+		return "gallery_images.like_count desc, liked_gallery_likes.liked_at desc"
+	default:
+		return "liked_gallery_likes.liked_at desc"
+	}
+}
+
+func receivedLikeGalleryImageOrder(sort string) string {
+	switch sort {
+	case "time":
+		return "updated_at desc, created_at desc"
+	default:
+		return "like_count desc, updated_at desc"
+	}
+}
+
 type galleryCountRow struct {
 	GalleryID string `gorm:"column:gallery_id"`
 	Total     int64  `gorm:"column:total"`
@@ -512,7 +594,7 @@ func firstNonEmptyString(values ...string) string {
 
 func listGalleryLikeCounts(db *gorm.DB, ids []string) (map[string]int, error) {
 	var rows []galleryCountRow
-	if err := db.Model(&model.GalleryLike{}).Select("gallery_id, COUNT(*) AS total").Where("gallery_id IN ?", ids).Group("gallery_id").Scan(&rows).Error; err != nil {
+	if err := db.Model(&model.GalleryLike{}).Select("gallery_id, COUNT(DISTINCT user_id) AS total").Where("gallery_id IN ?", ids).Group("gallery_id").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return galleryCountMap(rows), nil
@@ -609,7 +691,7 @@ func cacheGalleryImageFile(file model.GalleryImageFile) {
 
 func countGalleryLikes(tx *gorm.DB, galleryID string) (int, error) {
 	var count int64
-	err := tx.Model(&model.GalleryLike{}).Where("gallery_id = ?", galleryID).Count(&count).Error
+	err := tx.Model(&model.GalleryLike{}).Where("gallery_id = ?", galleryID).Distinct("user_id").Count(&count).Error
 	return int(count), err
 }
 

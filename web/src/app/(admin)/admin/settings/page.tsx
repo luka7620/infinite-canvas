@@ -38,6 +38,7 @@ const emptySettings: AdminSettings = {
         },
         auth: { allowRegister: true, registerCredits: 0, linuxDo: { enabled: false } },
         checkIn: { mode: "fixed", credits: 10, minCredits: 10, maxCredits: 10 },
+        galleryInteraction: { uploadRewardCredits: 0, likeRewardCredits: 0, dailyUploadLimit: 0, dailyLikeLimit: 0 },
         features: { videoEnabled: true },
     },
     private: { channels: [], promptSync: { enabled: true, cron: "*/5 * * * *" }, auth: { linuxDo: { clientId: "", clientSecret: "" } } },
@@ -498,6 +499,31 @@ export default function AdminSettingsPage() {
                                         </Row>
                                     </Col>
                                     <Col span={24}>
+                                        <Typography.Title level={5}>画廊互动奖励与限制</Typography.Title>
+                                        <Row gutter={16}>
+                                            <Col xs={24} md={6}>
+                                                <Form.Item name={["public", "galleryInteraction", "uploadRewardCredits"]} label="上传奖励" extra="成功上传到作品画廊后发放给上传者">
+                                                    <InputNumber min={0} step={1} precision={0} className="!w-full" addonAfter="点" />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} md={6}>
+                                                <Form.Item name={["public", "galleryInteraction", "likeRewardCredits"]} label="点赞奖励" extra="每次新增点赞后发放给点赞者，重复点赞同一作品不重复奖励">
+                                                    <InputNumber min={0} step={1} precision={0} className="!w-full" addonAfter="点" />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} md={6}>
+                                                <Form.Item name={["public", "galleryInteraction", "dailyUploadLimit"]} label="每日上传奖励上限" extra="超过后仍可上传，只是不再获得算力点；0 表示不限制">
+                                                    <InputNumber min={0} step={1} precision={0} className="!w-full" addonAfter="次/天" />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} md={6}>
+                                                <Form.Item name={["public", "galleryInteraction", "dailyLikeLimit"]} label="每日点赞奖励上限" extra="超过后仍可点赞，只是不再获得算力点；0 表示不限制">
+                                                    <InputNumber min={0} step={1} precision={0} className="!w-full" addonAfter="次/天" />
+                                                </Form.Item>
+                                            </Col>
+                                        </Row>
+                                    </Col>
+                                    <Col span={24}>
                                         <Typography.Title level={5}>模型算力点</Typography.Title>
                                         <Table
                                             rowKey="model"
@@ -891,6 +917,7 @@ function normalizePublicSetting(setting: Partial<AdminSettings["public"]> = {}):
             },
         },
         checkIn: normalizeCheckInSetting(setting.checkIn),
+        galleryInteraction: normalizeGalleryInteractionSetting(setting.galleryInteraction),
         features: {
             videoEnabled: setting.features?.videoEnabled !== false,
         },
@@ -909,6 +936,15 @@ function normalizeCheckInSetting(setting: Partial<AdminSettings["public"]["check
         credits,
         minCredits,
         maxCredits,
+    };
+}
+
+function normalizeGalleryInteractionSetting(setting: Partial<AdminSettings["public"]["galleryInteraction"]> = {}): AdminSettings["public"]["galleryInteraction"] {
+    return {
+        uploadRewardCredits: Math.max(0, Number(setting.uploadRewardCredits) || 0),
+        likeRewardCredits: Math.max(0, Number(setting.likeRewardCredits) || 0),
+        dailyUploadLimit: Math.max(0, Number(setting.dailyUploadLimit) || 0),
+        dailyLikeLimit: Math.max(0, Number(setting.dailyLikeLimit) || 0),
     };
 }
 

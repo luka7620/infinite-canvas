@@ -34,6 +34,13 @@ type CheckInRewardSetting struct {
 	MaxCredits int    `json:"maxCredits"`
 }
 
+type GalleryInteractionSetting struct {
+	UploadRewardCredits int `json:"uploadRewardCredits"`
+	LikeRewardCredits   int `json:"likeRewardCredits"`
+	DailyUploadLimit     int `json:"dailyUploadLimit"`
+	DailyLikeLimit       int `json:"dailyLikeLimit"`
+}
+
 type PublicFeatureSetting struct {
 	VideoEnabled *bool `json:"videoEnabled"`
 }
@@ -52,10 +59,11 @@ type PublicModelChannelSetting struct {
 
 // PublicSetting 公开配置。
 type PublicSetting struct {
-	ModelChannel PublicModelChannelSetting `json:"modelChannel"`
-	Auth         PublicAuthSetting         `json:"auth"`
-	CheckIn      CheckInRewardSetting      `json:"checkIn"`
-	Features     PublicFeatureSetting      `json:"features"`
+	ModelChannel       PublicModelChannelSetting `json:"modelChannel"`
+	Auth               PublicAuthSetting         `json:"auth"`
+	CheckIn            CheckInRewardSetting      `json:"checkIn"`
+	GalleryInteraction GalleryInteractionSetting `json:"galleryInteraction"`
+	Features           PublicFeatureSetting      `json:"features"`
 }
 
 type PublicAuthSetting struct {
