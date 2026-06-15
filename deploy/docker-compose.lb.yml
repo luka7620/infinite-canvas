@@ -5,7 +5,6 @@ services:
     env_file:
       - ../.env
     environment:
-      API_BASE_URL: http://127.0.0.1:9080
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required for load balanced deployment}
       STORAGE_DRIVER: postgres
       DATABASE_DSN: "host=postgres user=${POSTGRES_USER:-infinite_canvas} password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required} dbname=${POSTGRES_DB:-infinite_canvas} port=5432 sslmode=disable TimeZone=${TZ:-Asia/Shanghai}"

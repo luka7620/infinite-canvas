@@ -4,8 +4,6 @@ services:
     container_name: infinite-canvas
     env_file:
       - .env
-    environment:
-      API_BASE_URL: http://127.0.0.1:9080
     volumes:
       - ./data:/app/data
     ports:

@@ -1,6 +1,6 @@
 # 待测试
 
-- Docker 镜像运行时固定前端代理到容器内后端 `http://127.0.0.1:9080`，并改为前端或后端任一进程退出时容器同步退出；需要重新构建并推送镜像后，在服务器拉取最新镜像，确认 `docker compose ps` 中 app 为 healthy，`curl http://127.0.0.1:3000/api/health` 返回 `ok`，网页不再出现 502。
+- Docker 镜像前端运行方式移除 Next standalone 输出，恢复为复制完整 `web` 目录并通过 `npm run start` 启动；需要重新构建并推送镜像后，在服务器拉取最新镜像，确认 `docker compose ps` 中 app 为 healthy，`curl http://127.0.0.1:3000/api/health` 返回 `ok`，Nginx 代理访问不再出现 502。
 
 - 画廊新增发布时间段筛选：在 `/gallery` 和 `/admin/gallery` 选择开始日期和结束日期后，应只展示发布时间落在该日期范围内的作品，标签列表和本地列表缓存应随时间段变化同步更新；清空时间段后恢复全部作品筛选。
 
