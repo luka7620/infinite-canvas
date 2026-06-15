@@ -34,6 +34,7 @@ FROM ${NODE_IMAGE}
 WORKDIR /app
 COPY VERSION /app/VERSION
 COPY CHANGELOG.md /app/CHANGELOG.md
+COPY docker-start.sh /app/docker-start.sh
 COPY --from=api-build /server /app/server
 COPY --from=web-build /app/web/.next/standalone /app/web
 COPY --from=web-build /app/web/.next/static /app/web/.next/static
@@ -43,7 +44,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PROMPT_DATA_DIR=/app/data/prompts
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
-RUN mkdir -p /app/data/prompts
+RUN mkdir -p /app/data/prompts && chmod +x /app/docker-start.sh
 
 EXPOSE 3000
-CMD ["sh", "-c", "PORT=9080 /app/server & cd /app/web && HOSTNAME=0.0.0.0 PORT=3000 node server.cjs"]
+CMD ["/app/docker-start.sh"]

@@ -1,5 +1,7 @@
 # 待测试
 
+- Docker 镜像运行时固定前端代理到容器内后端 `http://127.0.0.1:9080`，并改为前端或后端任一进程退出时容器同步退出；需要重新构建并推送镜像后，在服务器拉取最新镜像，确认 `docker compose ps` 中 app 为 healthy，`curl http://127.0.0.1:3000/api/health` 返回 `ok`，网页不再出现 502。
+
 - 画廊新增发布时间段筛选：在 `/gallery` 和 `/admin/gallery` 选择开始日期和结束日期后，应只展示发布时间落在该日期范围内的作品，标签列表和本地列表缓存应随时间段变化同步更新；清空时间段后恢复全部作品筛选。
 
 - 画廊图片文件增加 Redis 缓存：配置 `REDIS_ADDR` 后，公开 `/api/gallery/{id}/image` 和后台 `/api/admin/gallery/{id}/image` 首次读取仍从 `gallery_image_files` 数据库副本加载，后续在 `REDIS_CACHE_TTL_SECONDS` 内应优先命中 Redis，删除画廊作品后对应图片缓存应同步失效。
