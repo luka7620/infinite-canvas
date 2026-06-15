@@ -1,9 +1,10 @@
 "use client";
 
 import { Clock, Heart, LockKeyhole, MessageCircle, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import dayjs, { type Dayjs } from "dayjs";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { App, Avatar, Button, Empty, Image, Input, Modal, Pagination, Segmented, Tag } from "antd";
+import { App, Avatar, Button, DatePicker, Empty, Image, Input, Modal, Pagination, Segmented, Tag } from "antd";
 
 import { createGalleryComment, fetchGalleryComments, fetchGalleryImages, toggleGalleryLike, type GalleryComment, type GalleryImage, type GalleryQuery } from "@/services/api/gallery";
 import { galleryListCacheKey, hydrateGalleryListImages, isGalleryReloadNavigation, readCachedGalleryList, saveCachedGalleryList } from "@/services/gallery-cache";
@@ -30,6 +31,7 @@ export default function GalleryPage() {
     const [keywordText, setKeywordText] = useState("");
     const [sort, setSort] = useState<GallerySort>("time");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [dateRange, setDateRange] = useState<[string, string]>(["", ""]);
     const [expandedPromptIds, setExpandedPromptIds] = useState<string[]>([]);
     const [commentImage, setCommentImage] = useState<GalleryImage | null>(null);
     const [comments, setComments] = useState<GalleryComment[]>([]);
@@ -45,7 +47,8 @@ export default function GalleryPage() {
     const handledRefreshNonce = useRef(0);
     const hasMoreComments = comments.length < commentTotal;
     const canViewGalleryImages = Boolean(token);
-    const query = useMemo<GalleryQuery>(() => ({ keyword, tag: selectedTags, page, pageSize, sort }), [keyword, page, selectedTags, sort]);
+    const pickerValue = useMemo<[Dayjs, Dayjs] | null>(() => (dateRange[0] && dateRange[1] ? [dayjs(dateRange[0]), dayjs(dateRange[1])] : null), [dateRange]);
+    const query = useMemo<GalleryQuery>(() => ({ keyword, tag: selectedTags, startDate: dateRange[0], endDate: dateRange[1], page, pageSize, sort }), [dateRange, keyword, page, selectedTags, sort]);
     const cacheScope = user?.id ? `user:${user.id}` : token ? "" : "guest";
     const cacheKey = useMemo(() => (cacheScope ? galleryListCacheKey(cacheScope, query) : ""), [cacheScope, query]);
 
@@ -215,6 +218,20 @@ export default function GalleryPage() {
                                     onChange={(value) => {
                                         setPage(1);
                                         setSort(value);
+                                    }}
+                                />
+                            </div>
+                            <div className="mt-5">
+                                <div className="mb-2 text-xs font-medium text-muted-foreground">发布时间</div>
+                                <DatePicker.RangePicker
+                                    className="w-full"
+                                    value={pickerValue}
+                                    allowClear
+                                    format="YYYY-MM-DD"
+                                    placeholder={["开始日期", "结束日期"]}
+                                    onChange={(_, value) => {
+                                        setPage(1);
+                                        setDateRange(value as [string, string]);
                                     }}
                                 />
                             </div>

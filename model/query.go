@@ -9,6 +9,8 @@ type Query struct {
 	Category string
 	Type     string
 	Sort     string
+	StartDate string
+	EndDate   string
 	Page     int
 	PageSize int
 }

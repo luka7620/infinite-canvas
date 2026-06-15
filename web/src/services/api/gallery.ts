@@ -60,6 +60,8 @@ export type GalleryQuery = {
     type?: string;
     sort?: "time" | "likes";
     tag?: string[];
+    startDate?: string;
+    endDate?: string;
     page?: number;
     pageSize?: number;
 };

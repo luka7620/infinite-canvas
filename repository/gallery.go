@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"time"
 
 	"github.com/basketikun/infinite-canvas/model"
 	"gorm.io/gorm"
@@ -325,7 +326,34 @@ func applyGalleryFilters(tx *gorm.DB, q model.Query, admin bool) *gorm.DB {
 			tx = tx.Where("title LIKE ? OR description LIKE ? OR model LIKE ? OR (show_prompt = ? AND prompt LIKE ?)", like, like, like, true, like)
 		}
 	}
+	tx = applyGalleryDateRange(tx, q.StartDate, q.EndDate)
 	return applyGalleryTagsFilter(tx, q.Tags)
+}
+
+func applyGalleryDateRange(tx *gorm.DB, startDate string, endDate string) *gorm.DB {
+	if date, ok := normalizeGalleryDate(startDate); ok {
+		tx = tx.Where("created_at >= ?", date+"T00:00:00")
+	}
+	if date, ok := normalizeGalleryDate(endDate); ok {
+		tx = tx.Where("created_at < ?", nextGalleryDate(date)+"T00:00:00")
+	}
+	return tx
+}
+
+func normalizeGalleryDate(value string) (string, bool) {
+	date, err := time.Parse(time.DateOnly, value)
+	if err != nil {
+		return "", false
+	}
+	return date.Format(time.DateOnly), true
+}
+
+func nextGalleryDate(value string) string {
+	date, err := time.Parse(time.DateOnly, value)
+	if err != nil {
+		return value
+	}
+	return date.AddDate(0, 0, 1).Format(time.DateOnly)
 }
 
 func applyGalleryTagsFilter(tx *gorm.DB, tags []string) *gorm.DB {

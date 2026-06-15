@@ -1,9 +1,8 @@
-# 构建 Next.js 前端产物。
 ARG BUN_IMAGE=oven/bun:1.3.13
 ARG GO_IMAGE=golang:1.25-alpine
 ARG NODE_IMAGE=node:22-bookworm-slim
 
-FROM ${BUN_IMAGE} AS web-build
+FROM --platform=$BUILDPLATFORM ${BUN_IMAGE} AS web-build
 
 WORKDIR /app/web
 COPY web/package.json web/bun.lock ./
@@ -13,10 +12,11 @@ COPY CHANGELOG.md /app/CHANGELOG.md
 COPY web ./
 RUN bun run build
 
-# 构建 Go 后端入口。
-FROM ${GO_IMAGE} AS api-build
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS api-build
 
 WORKDIR /app
+ARG TARGETOS
+ARG TARGETARCH
 ENV GOPROXY=https://goproxy.cn|https://goproxy.io|https://proxy.golang.org|direct
 COPY go.mod go.sum ./
 COPY config ./config
@@ -27,20 +27,23 @@ COPY repository ./repository
 COPY router ./router
 COPY service ./service
 COPY main.go ./
-RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build go build -o /server .
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -trimpath -o /server .
 
-# 运行镜像：Next.js 对外监听 3000，Go 只在容器内部监听 8080。
 FROM ${NODE_IMAGE}
 
 WORKDIR /app
 COPY VERSION /app/VERSION
 COPY CHANGELOG.md /app/CHANGELOG.md
 COPY --from=api-build /server /app/server
-COPY --from=web-build /app/web /app/web
+COPY --from=web-build /app/web/.next/standalone /app/web
+COPY --from=web-build /app/web/.next/static /app/web/.next/static
+COPY --from=web-build /app/web/public /app/web/public
+RUN mv /app/web/server.js /app/web/server.cjs
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV PROMPT_DATA_DIR=/app/data/prompts
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/data/prompts
 
 EXPOSE 3000
-# 先启动内部 Go API，再由 Next.js 提供页面并代理 /api/*。
-CMD ["sh", "-c", "PORT=9080 /app/server & cd /app/web && HOSTNAME=0.0.0.0 PORT=3000 npm run start"]
+CMD ["sh", "-c", "PORT=9080 /app/server & cd /app/web && HOSTNAME=0.0.0.0 PORT=3000 node server.cjs"]

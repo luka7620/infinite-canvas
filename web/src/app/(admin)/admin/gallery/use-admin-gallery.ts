@@ -19,6 +19,8 @@ export function useAdminGallery() {
     const [keyword, setKeyword] = useState("");
     const [status, setStatus] = useState("");
     const [tag, setTag] = useState<string[]>([]);
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(defaultPageSize);
     const invalidateGallery = async () => {
@@ -27,8 +29,8 @@ export function useAdminGallery() {
     };
 
     const query = useQuery({
-        queryKey: ["admin", "gallery", token, keyword, status, tag, page, pageSize],
-        queryFn: () => fetchAdminGalleryImages(token, { keyword, type: status, tag, page, pageSize }),
+        queryKey: ["admin", "gallery", token, keyword, status, tag, startDate, endDate, page, pageSize],
+        queryFn: () => fetchAdminGalleryImages(token, { keyword, type: status, tag, startDate, endDate, page, pageSize }),
         enabled: Boolean(token),
         retry: false,
     });
@@ -67,12 +69,14 @@ export function useAdminGallery() {
         if (errorMessage.includes("未登录") || errorMessage.includes("权限不足") || errorMessage.includes("登录状态无效")) clearSession();
     }, [clearSession, message, query.error, query.isError]);
 
-    const updateFilters = (next: Partial<{ keyword: string; status: string; tag: string[]; page: number; pageSize: number }>) => {
-        const queryState = { keyword, status, tag, page, pageSize, ...next };
-        if (next.keyword !== undefined || next.status !== undefined || next.tag !== undefined || next.pageSize !== undefined) queryState.page = 1;
+    const updateFilters = (next: Partial<{ keyword: string; status: string; tag: string[]; startDate: string; endDate: string; page: number; pageSize: number }>) => {
+        const queryState = { keyword, status, tag, startDate, endDate, page, pageSize, ...next };
+        if (next.keyword !== undefined || next.status !== undefined || next.tag !== undefined || next.startDate !== undefined || next.endDate !== undefined || next.pageSize !== undefined) queryState.page = 1;
         setKeyword(queryState.keyword);
         setStatus(queryState.status);
         setTag(queryState.tag);
+        setStartDate(queryState.startDate);
+        setEndDate(queryState.endDate);
         setPage(queryState.page);
         setPageSize(queryState.pageSize);
     };
@@ -85,6 +89,8 @@ export function useAdminGallery() {
         keyword,
         status,
         tag,
+        startDate,
+        endDate,
         page,
         pageSize,
         total: data?.total || 0,
@@ -92,9 +98,10 @@ export function useAdminGallery() {
         searchImages: (value = keyword) => updateFilters({ keyword: value }),
         changeStatus: (value: string) => updateFilters({ status: value, tag: [] }),
         changeTag: (value: string[]) => updateFilters({ tag: value }),
+        changeDateRange: (value: [string, string]) => updateFilters({ startDate: value[0], endDate: value[1] }),
         changePage: (value: number) => updateFilters({ page: value }),
         changePageSize: (value: number) => updateFilters({ pageSize: value }),
-        resetFilters: () => updateFilters({ keyword: "", status: "", tag: [], page: 1, pageSize: defaultPageSize }),
+        resetFilters: () => updateFilters({ keyword: "", status: "", tag: [], startDate: "", endDate: "", page: 1, pageSize: defaultPageSize }),
         refreshImages: () => query.refetch(),
         saveImage: (image: Partial<GalleryImage> & { id: string }) => saveMutation.mutateAsync(image),
         setStatus: (id: string, nextStatus: GalleryImage["status"]) => statusMutation.mutateAsync({ id, nextStatus }),

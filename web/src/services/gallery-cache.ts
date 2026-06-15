@@ -22,6 +22,8 @@ export function galleryListCacheKey(scope: string, query: GalleryQuery) {
         type: query.type || "",
         sort: query.sort || "time",
         tag: query.tag || [],
+        startDate: query.startDate || "",
+        endDate: query.endDate || "",
         page: query.page || 1,
         pageSize: query.pageSize || 20,
     });

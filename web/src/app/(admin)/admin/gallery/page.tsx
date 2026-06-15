@@ -2,7 +2,8 @@
 
 import { DeleteOutlined, EditOutlined, EyeOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
-import { Button, Card, Col, Flex, Form, Image, Input, Modal, Row, Select, Space, Switch, Tag, Tooltip, Typography } from "antd";
+import dayjs, { type Dayjs } from "dayjs";
+import { Button, Card, Col, DatePicker, Flex, Form, Image, Input, Modal, Row, Select, Space, Switch, Tag, Tooltip, Typography } from "antd";
 import { useEffect, useState } from "react";
 
 import type { GalleryImage } from "@/services/api/gallery";
@@ -23,7 +24,7 @@ const statusLabels: Record<GalleryImage["status"], { label: string; color: strin
 };
 
 export default function AdminGalleryPage() {
-    const { images, tags, keyword, status, tag, page, pageSize, total, isLoading, searchImages, changeStatus, changeTag, changePage, changePageSize, resetFilters, refreshImages, saveImage, setStatus, deleteImage } = useAdminGallery();
+    const { images, tags, keyword, status, tag, startDate, endDate, page, pageSize, total, isLoading, searchImages, changeStatus, changeTag, changeDateRange, changePage, changePageSize, resetFilters, refreshImages, saveImage, setStatus, deleteImage } = useAdminGallery();
     const token = useUserStore((state) => state.token);
     const imageUrls = useAdminGalleryImageUrls(images, token);
     const [form] = Form.useForm<GalleryFormValues>();
@@ -34,6 +35,7 @@ export default function AdminGalleryPage() {
     const [deletingImage, setDeletingImage] = useState<GalleryImage | null>(null);
     const tagOptions = tags.map((item) => ({ label: item, value: item }));
     const editableStatusOptions = statusOptions.slice(1);
+    const datePickerValue = startDate && endDate ? ([dayjs(startDate), dayjs(endDate)] as [Dayjs, Dayjs]) : null;
 
     useEffect(() => setKeywordText(keyword), [keyword]);
     useEffect(() => {
@@ -165,6 +167,11 @@ export default function AdminGalleryPage() {
                             <Col flex="220px">
                                 <Form.Item label="标签">
                                     <Select mode="multiple" allowClear maxTagCount="responsive" value={tag} onChange={changeTag} options={tagOptions} placeholder="全部标签" />
+                                </Form.Item>
+                            </Col>
+                            <Col flex="260px">
+                                <Form.Item label="发布时间">
+                                    <DatePicker.RangePicker className="w-full" value={datePickerValue} allowClear format="YYYY-MM-DD" placeholder={["开始日期", "结束日期"]} onChange={(_, value) => changeDateRange(value as [string, string])} />
                                 </Form.Item>
                             </Col>
                             <Col flex="none">
