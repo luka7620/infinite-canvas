@@ -100,6 +100,14 @@ type GalleryCommentList struct {
 	Total int              `json:"total"`
 }
 
+type GalleryRewardStats struct {
+	Date                      string `json:"date"`
+	UploadRewardCount         int    `json:"uploadRewardCount"`
+	LikeRewardCount           int    `json:"likeRewardCount"`
+	ReceivedLikeRewardCount   int    `json:"receivedLikeRewardCount"`
+	ReceivedLikeRewardCredits int    `json:"receivedLikeRewardCredits"`
+}
+
 type GalleryLikeResult struct {
 	Image         GalleryImage `json:"image"`
 	Liked         bool         `json:"liked"`

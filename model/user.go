@@ -116,8 +116,9 @@ const (
 	CreditLogTypeAIRefund             CreditLogType = "ai_refund"
 	CreditLogTypeCheckIn              CreditLogType = "check_in"
 	CreditLogTypeInviteCode           CreditLogType = "invite_code"
-	CreditLogTypeGalleryPublishReward CreditLogType = "gallery_publish_reward"
-	CreditLogTypeGalleryLikeReward    CreditLogType = "gallery_like_reward"
+	CreditLogTypeGalleryPublishReward    CreditLogType = "gallery_publish_reward"
+	CreditLogTypeGalleryLikeReward       CreditLogType = "gallery_like_reward"
+	CreditLogTypeGalleryLikeAuthorReward CreditLogType = "gallery_like_author_reward"
 )
 
 // CreditLog 用户算力点变更流水。

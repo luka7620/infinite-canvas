@@ -178,8 +178,9 @@ func adminStatsDistributions(startDate string, endDate string) (model.AdminStats
 		string(model.CreditLogTypeAIRefund):             "失败返还",
 		string(model.CreditLogTypeCheckIn):              "每日签到",
 		string(model.CreditLogTypeInviteCode):           "邀请码兑换",
-		string(model.CreditLogTypeGalleryPublishReward): "上传画廊奖励",
-		string(model.CreditLogTypeGalleryLikeReward):    "点赞画廊奖励",
+		string(model.CreditLogTypeGalleryPublishReward):    "上传画廊奖励",
+		string(model.CreditLogTypeGalleryLikeReward):       "点赞画廊奖励",
+		string(model.CreditLogTypeGalleryLikeAuthorReward): "作品被点赞奖励",
 	})
 	result.GalleryStatus = labelStatsItems(result.GalleryStatus, map[string]string{string(model.GalleryStatusPublic): "公开", string(model.GalleryStatusHidden): "隐藏"})
 	result.ModelUsage = labelStatsItems(result.ModelUsage, nil)

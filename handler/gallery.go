@@ -121,6 +121,20 @@ func MyReceivedLikeGalleryImages(w http.ResponseWriter, r *http.Request) {
 	OK(w, result)
 }
 
+func MyGalleryRewardStats(w http.ResponseWriter, r *http.Request) {
+	user, ok := service.UserFromContext(r.Context())
+	if !ok || user.Role == model.UserRoleGuest {
+		Fail(w, "请先登录")
+		return
+	}
+	result, err := service.MyGalleryRewardStats(user)
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, result)
+}
+
 func GalleryImageFile(w http.ResponseWriter, r *http.Request, id string) {
 	writeGalleryImageFile(w, id, false)
 }

@@ -18,6 +18,9 @@ const creditLogTypeLabels: Record<string, string> = {
     ai_refund: "失败返还",
     check_in: "每日签到",
     invite_code: "邀请码兑换",
+    gallery_publish_reward: "上传画廊奖励",
+    gallery_like_reward: "点赞画廊奖励",
+    gallery_like_author_reward: "作品被点赞奖励",
 };
 
 export default function AdminCreditLogsPage() {

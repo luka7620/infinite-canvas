@@ -36,6 +36,18 @@ type userLikeCountRow struct {
 	Total  int64  `gorm:"column:total"`
 }
 
+type CreditLogTypeStat struct {
+	Type   model.CreditLogType
+	Count  int
+	Amount int
+}
+
+type creditLogTypeStatRow struct {
+	Type   model.CreditLogType `gorm:"column:type"`
+	Count  int64               `gorm:"column:total"`
+	Amount int                 `gorm:"column:amount"`
+}
+
 type receivedLikeRow struct {
 	OwnerID   string `gorm:"column:owner_id"`
 	GalleryID string `gorm:"column:gallery_id"`
@@ -220,6 +232,32 @@ func CountCreditLogsByType(userID string, logType model.CreditLogType, start str
 	}
 	var total int64
 	return total, tx.Distinct("related_id").Count(&total).Error
+}
+
+func CreditLogTypeStats(userID string, logTypes []model.CreditLogType, start string, end string) (map[model.CreditLogType]CreditLogTypeStat, error) {
+	result := map[model.CreditLogType]CreditLogTypeStat{}
+	if userID == "" || len(logTypes) == 0 {
+		return result, nil
+	}
+	db, err := DB()
+	if err != nil {
+		return result, err
+	}
+	tx := db.Model(&model.CreditLog{}).Select("type, COUNT(DISTINCT related_id) AS total, COALESCE(SUM(amount), 0) AS amount").Where("user_id = ? AND type IN ?", userID, logTypes)
+	if start != "" {
+		tx = tx.Where("created_at >= ?", start)
+	}
+	if end != "" {
+		tx = tx.Where("created_at < ?", end)
+	}
+	var rows []creditLogTypeStatRow
+	if err := tx.Group("type").Scan(&rows).Error; err != nil {
+		return result, err
+	}
+	for _, row := range rows {
+		result[row.Type] = CreditLogTypeStat{Type: row.Type, Count: int(row.Count), Amount: row.Amount}
+	}
+	return result, nil
 }
 
 func HasCreditLog(userID string, logType model.CreditLogType, relatedID string) (bool, error) {

@@ -263,6 +263,28 @@ func ListMyReceivedLikeGalleryImages(user model.AuthUser, q model.Query) (model.
 	return model.GalleryImageList{Items: publicGalleryImages(items), Tags: []string{}, Total: int(total)}, nil
 }
 
+func MyGalleryRewardStats(user model.AuthUser) (model.GalleryRewardStats, error) {
+	if strings.TrimSpace(user.ID) == "" || user.Role == model.UserRoleGuest {
+		return model.GalleryRewardStats{}, safeMessageError{message: "请先登录"}
+	}
+	start, end := galleryInteractionDayRange()
+	stats, err := repository.CreditLogTypeStats(user.ID, []model.CreditLogType{
+		model.CreditLogTypeGalleryPublishReward,
+		model.CreditLogTypeGalleryLikeReward,
+		model.CreditLogTypeGalleryLikeAuthorReward,
+	}, start, end)
+	if err != nil {
+		return model.GalleryRewardStats{}, err
+	}
+	return model.GalleryRewardStats{
+		Date:                      checkInDate(),
+		UploadRewardCount:         stats[model.CreditLogTypeGalleryPublishReward].Count,
+		LikeRewardCount:           stats[model.CreditLogTypeGalleryLikeReward].Count,
+		ReceivedLikeRewardCount:   stats[model.CreditLogTypeGalleryLikeAuthorReward].Count,
+		ReceivedLikeRewardCredits: stats[model.CreditLogTypeGalleryLikeAuthorReward].Amount,
+	}, nil
+}
+
 func ToggleGalleryLike(id string, user model.AuthUser) (model.GalleryLikeResult, error) {
 	if strings.TrimSpace(user.ID) == "" || user.Role == model.UserRoleGuest {
 		return model.GalleryLikeResult{}, safeMessageError{message: "请先登录"}
@@ -289,6 +311,19 @@ func ToggleGalleryLike(id string, user model.AuthUser) (model.GalleryLikeResult,
 			log.Printf("gallery like reward failed: %v", rewardErr)
 		} else {
 			item.RewardCredits = rewardCredits
+		}
+		if item.UserID != "" && item.UserID != user.ID {
+			_, authorRewardErr := saveGalleryInteractionReward(
+				item.UserID,
+				model.CreditLogTypeGalleryLikeAuthorReward,
+				galleryAuthorLikeRewardID(item.ID, user.ID),
+				interactionSetting.ReceivedLikeRewardCredits,
+				interactionSetting.DailyReceivedLikeLimit,
+				"作品被点赞奖励",
+			)
+			if authorRewardErr != nil {
+				log.Printf("gallery like author reward failed: %v", authorRewardErr)
+			}
 		}
 	}
 	return model.GalleryLikeResult{Image: publicGalleryImage(item), Liked: liked, RewardCredits: item.RewardCredits}, nil
@@ -436,6 +471,10 @@ func galleryInteractionDayRange() (string, string) {
 		return date + "T00:00:00", ""
 	}
 	return date + "T00:00:00", parsed.AddDate(0, 0, 1).Format(time.DateOnly) + "T00:00:00"
+}
+
+func galleryAuthorLikeRewardID(galleryID string, likerID string) string {
+	return galleryID + ":" + likerID
 }
 
 func saveGalleryInteractionReward(userID string, logType model.CreditLogType, relatedID string, credits int, dailyLimit int, remark string) (int, error) {

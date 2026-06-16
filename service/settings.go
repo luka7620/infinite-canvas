@@ -120,11 +120,17 @@ func normalizeGalleryInteractionSetting(setting model.GalleryInteractionSetting)
 	if setting.LikeRewardCredits < 0 {
 		setting.LikeRewardCredits = 0
 	}
+	if setting.ReceivedLikeRewardCredits < 0 {
+		setting.ReceivedLikeRewardCredits = 0
+	}
 	if setting.DailyUploadLimit < 0 {
 		setting.DailyUploadLimit = 0
 	}
 	if setting.DailyLikeLimit < 0 {
 		setting.DailyLikeLimit = 0
+	}
+	if setting.DailyReceivedLikeLimit < 0 {
+		setting.DailyReceivedLikeLimit = 0
 	}
 	return setting
 }

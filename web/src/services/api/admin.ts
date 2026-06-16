@@ -318,8 +318,10 @@ export type AdminCheckInSettings = {
 export type AdminGalleryInteractionSettings = {
     uploadRewardCredits: number;
     likeRewardCredits: number;
+    receivedLikeRewardCredits: number;
     dailyUploadLimit: number;
     dailyLikeLimit: number;
+    dailyReceivedLikeLimit: number;
 };
 
 export type AdminFeatureSettings = {

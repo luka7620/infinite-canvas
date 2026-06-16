@@ -41,6 +41,7 @@ func New() *gin.Engine {
 	api.GET("/gallery", middleware.OptionalAuth, gin.WrapF(handler.GalleryImages))
 	api.GET("/me/gallery/liked", middleware.UserAuth, gin.WrapF(handler.MyLikedGalleryImages))
 	api.GET("/me/gallery/received-likes", middleware.UserAuth, gin.WrapF(handler.MyReceivedLikeGalleryImages))
+	api.GET("/me/gallery/reward-stats", middleware.UserAuth, gin.WrapF(handler.MyGalleryRewardStats))
 	api.GET("/gallery/:id/image", func(c *gin.Context) {
 		handler.GalleryImageFile(c.Writer, c.Request, c.Param("id"))
 	})

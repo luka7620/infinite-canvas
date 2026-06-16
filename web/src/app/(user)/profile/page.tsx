@@ -6,11 +6,13 @@ import { useEffect, useMemo, useState } from "react";
 import { App, Avatar, Button, Empty, Image, Pagination, Segmented, Tag } from "antd";
 
 import {
+    fetchMyGalleryRewardStats,
     fetchMyLikedGalleryImages,
     fetchMyReceivedLikeGalleryImages,
     toggleGalleryLike,
     type GalleryImage,
     type GalleryQuery,
+    type GalleryRewardStats,
 } from "@/services/api/gallery";
 import { useUserStore } from "@/stores/use-user-store";
 
@@ -42,6 +44,8 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(false);
     const [likingIds, setLikingIds] = useState<string[]>([]);
     const [refreshNonce, setRefreshNonce] = useState(0);
+    const [rewardStatsNonce, setRewardStatsNonce] = useState(0);
+    const [rewardStats, setRewardStats] = useState<GalleryRewardStats | null>(null);
     const userName = user?.displayName || user?.username || "用户";
     const avatarText = userName.slice(0, 1).toUpperCase();
     const joinedAt = useMemo(() => formatProfileDate(user?.createdAt || ""), [user?.createdAt]);
@@ -50,6 +54,19 @@ export default function ProfilePage() {
     useEffect(() => {
         if (token) void hydrateUser();
     }, [hydrateUser, token]);
+
+    useEffect(() => {
+        if (!token || !user) return;
+        let active = true;
+        void fetchMyGalleryRewardStats(token)
+            .then((data) => {
+                if (active) setRewardStats(data);
+            })
+            .catch((error) => message.error(error instanceof Error ? error.message : "读取今日奖励统计失败"));
+        return () => {
+            active = false;
+        };
+    }, [message, rewardStatsNonce, token, user?.id]);
 
     useEffect(() => {
         if (!token || !user) return;
@@ -96,6 +113,7 @@ export default function ProfilePage() {
             const result = await toggleGalleryLike(token, item.id);
             updateImage(result.image, result.liked);
             void hydrateUser();
+            setRewardStatsNonce((value) => value + 1);
             showGalleryRewardMessage(message, result.rewardCredits || result.image.rewardCredits);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "点赞失败");
@@ -154,6 +172,24 @@ export default function ProfilePage() {
                             <ProfileStat label="我点赞过" value={(user?.likeGivenCount || 0).toLocaleString()} />
                             <ProfileStat label="收到点赞" value={(user?.likeReceivedCount || 0).toLocaleString()} />
                         </div>
+                    </div>
+                </div>
+
+                <div className="mt-5 rounded-lg border border-border bg-card p-5 sm:p-6">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground">今日奖励</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">{rewardStats?.date || "-"} 的画廊互动奖励统计</p>
+                        </div>
+                        <Button size="small" icon={<RefreshCw className="size-3.5" />} onClick={() => setRewardStatsNonce((value) => value + 1)}>
+                            刷新
+                        </Button>
+                    </div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <ProfileStat label="上传奖励次数" value={(rewardStats?.uploadRewardCount || 0).toLocaleString()} />
+                        <ProfileStat label="点赞奖励次数" value={(rewardStats?.likeRewardCount || 0).toLocaleString()} />
+                        <ProfileStat label="被点赞奖励次数" value={(rewardStats?.receivedLikeRewardCount || 0).toLocaleString()} />
+                        <ProfileStat label="被点赞获得点数" value={(rewardStats?.receivedLikeRewardCredits || 0).toLocaleString()} />
                     </div>
                 </div>
 

@@ -55,6 +55,14 @@
     "minCredits": 10,
     "maxCredits": 10
   },
+  "galleryInteraction": {
+    "uploadRewardCredits": 0,
+    "likeRewardCredits": 0,
+    "receivedLikeRewardCredits": 0,
+    "dailyUploadLimit": 0,
+    "dailyLikeLimit": 0,
+    "dailyReceivedLikeLimit": 0
+  },
   "features": {
     "videoEnabled": true
   }
@@ -66,6 +74,7 @@
 | `modelChannel` | object | 模型渠道公开配置组 |
 | `auth` | object | 认证相关公开配置 |
 | `checkIn` | object | 每日签到奖励配置 |
+| `galleryInteraction` | object | 画廊上传、点赞者和被点赞作者奖励配置 |
 | `features` | object | 前台功能开关公开配置 |
 
 `modelChannel` 字段：
@@ -95,6 +104,16 @@
 | `credits` | number | 固定模式发放点数，默认 10 |
 | `minCredits` | number | 随机模式最小发放点数 |
 | `maxCredits` | number | 随机模式最大发放点数 |
+
+`galleryInteraction` 字段：
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `uploadRewardCredits` | number | 用户成功上传公开画廊作品后奖励给上传者的算力点，0 表示不奖励 |
+| `likeRewardCredits` | number | 用户新增点赞后奖励给点赞者的算力点，同一作品重复点赞不重复奖励，0 表示不奖励 |
+| `receivedLikeRewardCredits` | number | 作品被其他用户新增点赞后奖励给作者的算力点，同一用户重复点赞同一作品不重复奖励，0 表示不奖励 |
+| `dailyUploadLimit` | number | 每个用户每日上传画廊可获得奖励的次数上限，0 表示不限制 |
+| `dailyLikeLimit` | number | 每个用户每日新增点赞可获得奖励的次数上限，0 表示不限制 |
+| `dailyReceivedLikeLimit` | number | 每个作者每日通过作品被点赞可获得奖励的次数上限，0 表示不限制 |
 
 用户侧请求模式：
 

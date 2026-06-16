@@ -35,10 +35,12 @@ type CheckInRewardSetting struct {
 }
 
 type GalleryInteractionSetting struct {
-	UploadRewardCredits int `json:"uploadRewardCredits"`
-	LikeRewardCredits   int `json:"likeRewardCredits"`
-	DailyUploadLimit     int `json:"dailyUploadLimit"`
-	DailyLikeLimit       int `json:"dailyLikeLimit"`
+	UploadRewardCredits       int `json:"uploadRewardCredits"`
+	LikeRewardCredits         int `json:"likeRewardCredits"`
+	ReceivedLikeRewardCredits int `json:"receivedLikeRewardCredits"`
+	DailyUploadLimit           int `json:"dailyUploadLimit"`
+	DailyLikeLimit             int `json:"dailyLikeLimit"`
+	DailyReceivedLikeLimit     int `json:"dailyReceivedLikeLimit"`
 }
 
 type PublicFeatureSetting struct {
